@@ -1,0 +1,1464 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>달 모양 관측소</title>
+<meta name="description" content="달의 공전과 위상 변화를 3D 모형으로 관찰하고, 지구에서 보이는 달의 모양이 바뀌는 까닭을 찾는 수업 자료">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b1a; --panel:#111934; --line:#2a3768;
+  --text:#eef2ff; --muted:#a9b4d8; --accent:#ffcf5a; --accent2:#7cc4ff;
+  --ok:#5fe0a0; --bad:#ff8a8a; --chip:#1f2b5a; --chiph:#2b3a78;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font-family:"Noto Sans KR",system-ui,sans-serif;line-height:1.6;min-height:100vh;-webkit-tap-highlight-color:transparent}
+#app{max-width:1280px;margin:0 auto;padding:14px 16px 60px}
+h1,h2,h3,.title{font-family:"Do Hyeon","Noto Sans KR",sans-serif;font-weight:400;letter-spacing:.5px;margin:0}
+h1{font-size:clamp(36px,6vw,58px);line-height:1.15}
+h3{font-size:22px;margin-bottom:6px}
+p{margin:.4em 0}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{background:var(--accent);color:#1b1400;border:0;border-radius:999px;padding:12px 24px;font-weight:700;font-size:17px}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--text);border:1.5px solid var(--line)}
+.btn.small{padding:7px 14px;font-size:14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.muted{color:var(--muted)}
+.note{font-size:13px;color:var(--muted);margin-top:8px}
+input{font:inherit;color:var(--text);background:#0b1230;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+input:focus{outline:2px solid var(--accent2);border-color:transparent}
+label{display:block;font-weight:700;margin:10px 0 4px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.top .grow{flex:1}
+.pill{background:var(--chip);border-radius:999px;padding:5px 12px;font-size:14px;color:var(--muted)}
+.pill b{color:var(--text)}
+
+.intro{display:grid;grid-template-columns:1.3fr 1fr;gap:22px;align-items:center;min-height:88vh}
+.intro>*{min-width:0}
+.intro-r{display:flex;flex-direction:column;gap:12px}
+.kicker{color:var(--accent2);font-weight:700;margin:0;font-size:14px}
+.lead{font-size:18px}
+.lead b{color:var(--accent)}
+@media (max-width:920px){.intro{grid-template-columns:1fr;min-height:auto}}
+
+/* 3D 화면 */
+.stage{position:relative;width:100%;height:min(66vh,640px);min-height:320px;border-radius:var(--r);overflow:hidden;background:#050914;border:1px solid var(--line);touch-action:none;user-select:none;-webkit-user-select:none}
+@media (max-width:920px){.stage{height:min(56vh,540px)}}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.stage canvas.ov{pointer-events:none}
+.stage .hud{position:absolute;left:10px;top:10px;right:10px;pointer-events:none;font-size:15px;font-weight:700;line-height:1.4}
+.stage .hud span{display:inline-block;background:#08102ecc;border:1px solid #ffffff26;border-radius:12px;padding:5px 12px}
+.stage .hud span:empty{display:none}
+.stage.big .hud{font-size:24px}
+.stage .nogl{display:flex;align-items:center;justify-content:center;height:100%;padding:20px;text-align:center;color:var(--muted)}
+
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.group{display:flex;gap:3px;flex-wrap:wrap;align-items:center;background:#0b1230;border:1px solid var(--line);border-radius:999px;padding:3px}
+.group .lbl{font-size:13px;color:var(--muted);padding:0 6px 0 10px}
+.chip{background:var(--chip);border:1.5px solid transparent;border-radius:999px;padding:6px 14px;font-size:15px;min-height:40px}
+.chip:hover{background:var(--chiph)}
+.chip.on{background:var(--accent2);color:#06142b;font-weight:700}
+.chip.big{font-weight:700;padding:6px 20px}
+.chip.play{background:var(--accent);color:#1b1400;font-weight:700}
+.group .chip{min-height:36px;padding:4px 12px}
+.group.months .chip{min-width:46px;padding:4px 8px}
+
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{background:var(--chip);border:1.5px solid transparent;border-radius:12px;padding:8px 14px;font-weight:700;font-size:15px}
+.tab.on{border-color:var(--accent);color:var(--accent);background:var(--chiph)}
+.lesson{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr);gap:14px;align-items:start}
+.lesson>*{min-width:0}
+@media (max-width:920px){.lesson{grid-template-columns:1fr}}
+.concept ol{padding-left:22px;margin:8px 0}
+.concept li{margin:10px 0;font-size:17px;line-height:2}
+.blank{display:inline-block;min-width:54px;text-align:center;border:0;border-bottom:2.5px solid var(--accent);background:#ffcf5a14;color:var(--accent);padding:0 8px;margin:0 2px;font-weight:700;border-radius:6px 6px 0 0;line-height:1.6}
+button.blank:not(.show){color:transparent}
+.blank.ok{border-color:var(--ok);color:var(--ok)}
+/* 수업 모드: TV로 함께 보도록 3D 화면을 크게, 정리 카드는 아래에 큰 글씨로 */
+.cl-stage .stage{height:max(420px,calc(100vh - 200px))}
+#app:has(.cl-stage){max-width:1880px}
+.cl-stage .chip{font-size:17px;min-height:46px}
+.cl-stage .group .chip{min-height:42px}
+.concept.big{margin-top:16px}
+.concept.big h3{font-size:clamp(24px,2.6vw,34px)}
+.concept.big li{font-size:clamp(22px,2.4vw,32px);margin:12px 0}
+.concept.big .ask{font-size:clamp(19px,1.9vw,26px)}
+.ask{background:#1c2a5c;border-left:4px solid var(--accent);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:15px}
+.ask b{color:var(--accent)}
+
+.mcards{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+@media (max-width:700px){.mcards{grid-template-columns:1fr}}
+.mcard{display:flex;flex-direction:column;gap:8px}
+.mcard .n{font-family:"Do Hyeon";color:var(--accent);font-size:15px}
+.mcard.lock{opacity:.5}
+.mcard .row{margin-top:auto}
+.st-done{color:var(--ok);font-weight:700}
+.check{list-style:none;padding:0;margin:6px 0 12px}
+.check li{padding:3px 0}
+.check li.ok{color:var(--ok)}
+.q{border-top:1px solid var(--line);padding:12px 0}
+.q:first-of-type{border-top:0}
+.q.locked{opacity:.4}
+.q .s{font-size:17px}
+.opts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.opt{background:var(--chip);border:1.5px solid var(--line);border-radius:999px;padding:7px 16px;font-size:15px}
+.opt:hover{background:var(--chiph)}
+.opt:disabled{cursor:default}
+.opt.no{opacity:.35;text-decoration:line-through;pointer-events:none}
+.opt.sel{background:var(--accent);color:#1b1400;border-color:var(--accent);opacity:1}
+.opts.zod .opt{padding:5px 10px;font-size:14px}
+.fb{font-size:15px;margin-top:6px}
+.fb.ok{color:var(--ok)}
+.fb.bad{color:var(--bad)}
+.fb.ex{color:var(--text);background:#16224a;border-radius:8px;padding:6px 10px}
+.done{background:#173a2c;border:1px solid var(--ok);border-radius:12px;padding:12px 14px;margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.done b{flex:1;min-width:160px}
+.done.retry{background:#3a2a14;border-color:#ffb02e}
+.done.retry>span{flex-basis:100%;font-size:15px;line-height:1.5}
+.done.retry>span b{flex:none;min-width:0}
+.st-re{color:#ffb02e;font-weight:700}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.stp{background:var(--chip);border:1.5px solid transparent;border-radius:999px;padding:5px 12px;font-size:14px}
+.stp.on{border-color:var(--accent);color:var(--accent)}
+.stp.ok::after{content:" ✓";color:var(--ok)}
+.quiz{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.quiz>*{min-width:0}
+@media (max-width:820px){.quiz{grid-template-columns:1fr}}
+.quiz .q{border-top:0;padding:0}
+svg.fig{width:100%;max-height:250px;border-radius:10px;background:#0b1230;display:block;margin-bottom:10px}
+svg.fig.sq{max-height:440px}
+.score{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:16px;margin:10px 0}
+.score dt{color:var(--muted)}
+.score dd{margin:0;font-weight:700}
+details.tip{background:#13204a;border:1px solid #3d5bb0;border-radius:12px;padding:10px 14px;margin:10px 0}
+details.tip summary{cursor:pointer;font-weight:700;color:var(--accent);font-size:16px}
+details.tip ol{margin:8px 0 0 20px;padding:0}details.tip li{margin:5px 0}
+.ztbl{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:8px;font-size:13px;text-align:center}
+.ztbl span{background:#0b1230;border-radius:6px;padding:4px 2px}.ztbl b{display:block;color:#ffd9a8;font-size:12px}
+.boxq{background:#0b1230;border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
+
+.tstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}
+.tstats div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--muted)}
+.tstats b{display:block;font-family:"Do Hyeon";font-size:28px;color:var(--text)}
+.tbl-wrap{overflow-x:auto}
+.ttbl{border-collapse:collapse;width:100%;font-size:14px;white-space:nowrap}
+.ttbl th,.ttbl td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left}
+.ttbl th{color:var(--muted);font-weight:500}
+.tok{color:var(--ok);font-weight:700}
+/* 3차시: 달 모양 고르기 · 위상 띠 */
+.opts.shapes .opt{display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:12px;padding:6px 8px;font-size:12.5px;min-width:86px}
+.opts.shapes .opt svg{display:block}
+.pstrip{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:8px;text-align:center;font-size:12px}
+.pstrip span{background:#0b1230;border-radius:8px;padding:4px 2px}
+.pstrip b{display:block;color:#ffd9a8}
+.pstrip svg{display:block;margin:2px auto}
+.pstrip.p8{grid-template-columns:repeat(8,1fr)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+'use strict';
+/* ───────── 설정 ─────────
+   SUBMIT_URL: 태양계 탐사대·일주운동·연주운동과 같은 Apps Script 주소. 결과는 같은 구글 시트의 '달의 위상 현황' 탭에 모여요. */
+const CONFIG = {
+  SUBMIT_URL: 'https://script.google.com/macros/s/AKfycbwgcIJOTfz5PJHlA4DWjsth69Wyt_SMK7ea1NpXJUUEUCmBmyYRkA0Vpjh5du_2SHI/exec',
+  LESSON: '달의 위상'
+};
+const D2R = Math.PI / 180;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const norm = d => ((d % 360) + 360) % 360;
+
+/* ───────── 달의 위상 ─────────
+   th: 삭 위치에서 달이 공전한 각(°). 햇빛은 오른쪽(+x)에서 오고, 북극 위에서 보면 달은 시계 반대 방향으로 돌아요.
+   th = 0 삭, 90 상현, 180 망, 270 하현. 음력 날짜는 위상 변화 주기 29.5일로 어림해요. */
+function phName(th) {
+  const n = norm(th);
+  if (n < 10 || n >= 350) return '삭';
+  if (n < 80) return '초승달';
+  if (n <= 100) return '상현달';
+  if (n < 170) return '상현달과 보름달 사이';
+  if (n <= 190) return '보름달 (망)';
+  if (n < 260) return '보름달과 하현달 사이';
+  if (n <= 280) return '하현달';
+  return '그믐달';
+}
+const lunarDay = th => Math.floor(1 + norm(th) / 360 * 29.5);
+/* 달 위상 그림에 쓰는 실제 달 사진 (NASA LRO 앞면 모자이크, 퍼블릭 도메인 · NASA/GSFC/Arizona State University).
+   밝은 부분만 이 사진으로 칠하고, 어두운 부분은 짙은 색으로 남겨요. SVG에서는 짧은 blob 주소로 써요 */
+const MOON_JPG = 'data:image/jpeg;base64,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';
+const moonImg = new Image(); moonImg.src = MOON_JPG;
+const MOON_URL = (() => { try { const s = atob(MOON_JPG.split(',')[1]), a = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return URL.createObjectURL(new Blob([a], { type: 'image/jpeg' })); } catch (e) { return MOON_JPG; } })();
+let clipN = 0;
+/* 지구에서 본 달 모양의 밝은 부분 (반지름 1인 원). 오른쪽이 밝으면 차오르는 달, 왼쪽이 밝으면 작아지는 달.
+   밝은 쪽 가장자리 반원 + 명암 경계(가로 반지름 cos th인 반타원)로 둘러싼 모양이에요. */
+function phasePts(th) {
+  const t = norm(th) * D2R, s = Math.sin(t) >= -1e-9 ? 1 : -1, k = Math.cos(t), p = [];
+  for (let a = -90; a <= 90; a += 6) p.push([s * Math.cos(a * D2R), Math.sin(a * D2R)]);
+  for (let a = 90; a >= -90; a -= 6) p.push([s * k * Math.cos(a * D2R), Math.sin(a * D2R)]);
+  return p;
+}
+const isNew = th => Math.cos(norm(th) * D2R) > 0.985;
+function phaseSVG(cx, cy, r, th) {
+  const pts = phasePts(th).map(([x, y]) => `${(cx + x * r).toFixed(2)},${(cy + y * r).toFixed(2)}`).join(' ');
+  const id = 'mclip' + (++clipN);
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#2b3150" stroke="#9aa7d6" stroke-width="${(r * 0.05).toFixed(2)}"${isNew(th) ? ` stroke-dasharray="${(r * 0.18).toFixed(2)} ${(r * 0.14).toFixed(2)}"` : ''}/><clipPath id="${id}"><polygon points="${pts}"/></clipPath><image href="${MOON_URL}" x="${cx - r}" y="${cy - r}" width="${2 * r}" height="${2 * r}" preserveAspectRatio="none" clip-path="url(#${id})"/>`;
+}
+const phaseIcon = (th, size) => `<svg viewBox="-1.15 -1.15 2.3 2.3" width="${size}" height="${size}" aria-hidden="true">${phaseSVG(0, 0, 1, th)}</svg>`;
+// 탐구 위치 ㉮~㉵ (교과서 그림: 햇빛이 오른쪽에서 오고, ㉵가 태양 쪽)
+const POS = [['㉮', 45], ['㉯', 90], ['㉰', 135], ['㉱', 180], ['㉲', 225], ['㉳', 270], ['㉴', 315], ['㉵', 0]];
+const SHAPES = [[0, '안 보임'], [45, '오른쪽 조금'], [90, '오른쪽 반원'], [135, '오른쪽이 더 많이'], [180, '둥근 전체'], [225, '왼쪽이 더 많이'], [270, '왼쪽 반원'], [315, '왼쪽 조금']];
+const PH8 = ['삭', '초승달', '상현달', '상현~보름 사이', '보름달(망)', '보름~하현 사이', '하현달', '그믐달'];
+const PH6 = [[0, '삭', '1일'], [30, '초승달', '2~3일'], [90, '상현달', '7~8일'], [180, '보름달(망)', '15일'], [270, '하현달', '22~23일'], [330, '그믐달', '27~28일']];
+
+/* ───────── 지구 지도 (경도, 위도) — 1·2차시와 같은 단순한 대륙 그림 ───────── */
+const LAND = [
+  [[-9,37],[-9,43],[-2,43.5],[-4.5,48],[-1,49.5],[2,51],[5,53],[8,54],[8,57],[10,59],[5,62],[10,64],[15,68],[20,70],[28,71],[33,69],[41,67],[44,68],[53,68],[60,69],[68,72],[73,72],[80,73],[90,75],[100,77],[112,74],[125,73],[140,72],[150,71],[160,70],[170,70],[180,68.5],[180,65],[178,62],[170,60],[163,58],[162,54],[157,51],[156,57],[150,59],[143,59],[137,54],[141,52],[140,48],[135,43],[132,43],[130,42],[129.5,40],[128,38.5],[129,35.5],[127,34.5],[126,35],[126.5,37.5],[125,39.5],[122,40],[121,39],[122,37],[119,35],[121,32],[122,30],[120,26],[117,23.5],[113,22],[110,21.5],[108,21.5],[106,18],[109,12],[105,8.6],[102.5,12],[100,13.5],[100,9],[103,5],[104,1.4],[101,3],[99,8],[98,15],[97,17],[94,19],[91.5,22.5],[88,22],[87,21],[85,19.5],[80,15],[80,10],[77.5,8],[76,10],[73,16],[72.6,21],[70,22.5],[67,24.5],[62,25],[57,25.7],[56.3,27],[54,26.7],[50.5,30],[48,30],[50,26],[51.5,24],[54,24],[56,26],[57.5,23.5],[59.5,22.5],[57,18.9],[52,16],[48,14],[44,12.7],[43,14],[42.5,16.5],[39,21.5],[35,28],[34.5,29.5],[34,31],[35,32.5],[36,35],[36,36.7],[32,36.2],[28,36.7],[26.3,38.3],[26,40],[23,40.5],[22.5,37],[21,38.5],[19.5,40.5],[19,42],[16,43.5],[13.5,45.5],[12.3,44.5],[14,42],[16,40],[16.5,38],[15.6,38],[14,40.5],[12,42],[10.5,43.8],[9,44.4],[7.5,43.8],[4,43.4],[3,42],[0.7,40.7],[0,38.8],[-0.7,37.6],[-2,36.7],[-5.4,36.1],[-6.3,36.8],[-7.4,37.2]],
+  [[-17,21],[-16.5,24],[-13,27.5],[-9.8,30],[-9.3,32.5],[-6.8,34],[-5.9,35.8],[-2,35.1],[1,36.5],[5,36.8],[10,37.2],[11,35.5],[10,34],[11.2,33.2],[15,32.3],[19,30.3],[20,31.8],[23,32.6],[25,31.8],[29,30.9],[32,31.3],[34.2,31.2],[34.5,28],[33,28],[35.5,24],[37,21],[38.5,18],[40,15.5],[43.3,12.6],[44,10.5],[51.2,11.8],[51,10.4],[48,5],[44,1],[41.5,-1.7],[40,-3.5],[39,-6.5],[39.5,-10],[40.5,-15],[37,-17.8],[35.4,-21.5],[35.5,-24],[32.7,-26],[32.5,-29],[30,-31.3],[27,-33.6],[22,-34],[20,-34.8],[18.4,-34],[17.8,-31],[15,-26.6],[14.5,-22.5],[11.8,-17.3],[13.6,-12],[13.2,-9],[12.2,-6],[9,-1],[9.5,2.5],[8.5,4.5],[6,4.3],[4.5,6.3],[1.5,6.1],[-2,4.8],[-7.5,4.4],[-10.5,6.5],[-13,8],[-13.4,9.5],[-15,11],[-16.7,12.5],[-17.4,14.7],[-16.5,16],[-16.2,19.5]],
+  [[-168,65.5],[-163,67],[-166,68.8],[-156,71.3],[-141,69.7],[-128,70],[-115,68.5],[-100,68],[-94,71.8],[-86,68.5],[-81,69.5],[-75,68],[-67,63],[-64,60],[-61,56],[-56,52],[-60,50],[-66,49],[-64,47],[-61,45],[-66,44],[-70,41.6],[-74,40.5],[-76,37],[-75.5,35.3],[-78.5,33.8],[-81,31.5],[-80,27],[-80.4,25.2],[-81.8,26.5],[-83,29],[-85,29.8],[-89,30.3],[-90,29],[-94,29.6],[-97.2,27.5],[-97.5,25],[-97.8,22],[-96.5,19.3],[-94.5,18.2],[-91,18.8],[-90.4,21],[-87,21.5],[-87.6,18],[-88.3,16],[-84,15.8],[-83.5,11],[-81.8,9],[-79.5,9.5],[-77.4,8.7],[-77.3,7.8],[-78.5,7.5],[-80.4,7.3],[-81.5,7.8],[-85.7,10.2],[-87.5,12.9],[-91.4,13.9],[-94,16],[-96.5,15.7],[-101,17.5],[-105.5,20.5],[-105.3,23.2],[-109.5,26.7],[-112.3,29.5],[-114.7,31.6],[-117.1,32.5],[-120.6,34.6],[-122.5,37.5],[-124,40.4],[-124.5,43],[-124,46.2],[-124.7,48.4],[-127.5,50.5],[-130,54],[-133,57.5],[-137.5,58.8],[-141,60],[-147,60.8],[-151.5,59.2],[-154,57],[-158,56.6],[-162,55],[-158,58.6],[-162,59.9],[-165,62],[-164.7,63.2],[-161,64.3],[-166,64.6]],
+  [[-77.3,8.6],[-75.5,10.6],[-71.3,12.3],[-70,11.5],[-63,10.7],[-61,10.2],[-57,6],[-52,5],[-50,1.7],[-48.5,-1],[-44.5,-2.5],[-40,-2.9],[-35.3,-5.2],[-34.8,-7.5],[-37,-11],[-39,-13.5],[-39,-17.6],[-40.7,-21.7],[-43,-23],[-48.5,-26.2],[-48.6,-28.5],[-52,-32.2],[-53.4,-33.7],[-57.5,-34.8],[-57.2,-36.3],[-58.4,-38.3],[-62.3,-38.8],[-62.2,-40.8],[-65,-41],[-63.8,-42.2],[-65.2,-45],[-67.6,-46.4],[-65.8,-47.8],[-69.1,-50.3],[-68.2,-52.5],[-71,-53.8],[-74.6,-52.5],[-75.5,-48.7],[-74,-43.5],[-73.6,-37.2],[-71.4,-32.4],[-71.4,-28.8],[-70.4,-23.5],[-70.3,-18.4],[-71.4,-17.8],[-76.2,-13.6],[-77.7,-11],[-79.8,-7.2],[-81.2,-5.9],[-80.3,-3.4],[-80,-2.2],[-80.9,-1],[-80,0.8],[-78.8,1.4],[-77.9,2.7],[-77.1,3.8],[-77.5,6.7]],
+  [[113.4,-22],[114.2,-26.3],[115,-30],[115.7,-33.5],[118,-35],[122,-34],[123.6,-33.9],[126.2,-32.2],[131.3,-31.5],[134.3,-33],[135.9,-35],[137.9,-33.6],[138.4,-35.1],[140,-37.4],[143.8,-38.8],[146.3,-39],[150,-37.4],[150.7,-34.5],[152.9,-31.6],[153.6,-28],[153,-25.5],[150.5,-22.4],[149,-20.6],[146.4,-19],[145.4,-15.4],[143.6,-14],[142.5,-10.7],[141.6,-12.9],[141.5,-15],[140.2,-17.7],[136.8,-15.9],[135.4,-14.7],[136.9,-12.3],[132.6,-11.5],[131,-12.2],[129.4,-14.4],[126.1,-14.3],[125.1,-16.2],[122.2,-18.2],[121,-19.5],[117.2,-20.6]],
+  [[130,31.2],[131.4,33.6],[135,34],[136.8,34.7],[139.8,35],[140.9,36.9],[141.5,38.6],[142,40],[141.4,41.4],[140,41.5],[140.2,40],[139.9,38],[138.6,37.3],[137,37],[136,35.8],[133,35.5],[131,34.3],[130,33.5]]
+];
+const GREENLAND = [[-73,78],[-60,82],[-40,83.5],[-22,82],[-18,78],[-22,72],[-24,69],[-32,68],[-40,65],[-43,60],[-48,61],[-52,65],[-54,68],[-56,72],[-66,76]];
+
+/* ───────── 3D 화면 ─────────
+   view: 'orbit'(가운데 지구, 공전하는 달, 오른쪽에서 오는 햇빛) · 'sky'(해가 진 직후 남쪽을 보고 선 하늘, 2D 그림)
+   cam: 'oblique' 비스듬히 · 'top' 북극 위에서 · 'earth' 지구에서 달을 본 모습(스마트 기기로 찍은 것처럼) */
+const Stage = (() => {
+  const S = { view: 'orbit', cam: 'oblique', th: 30, playing: false, speed: 1, goal: null, rate: 90,
+    half: false, all8: false, marks: false, inset: true, hudAns: true, lit: false, deg13: false, toon: true, focus: false, sd: 2, dph: 180, hr: 18, hr0: 17, dspd: 1, dprev: null, stops: null, stopKinds: [], stopIdx: 0, skyFrom: null };
+  const DAY13 = 360 / 27.3; // 달이 하루에 공전하는 각 (약 13°)
+  const SPEEDS = [15, 36, 90]; // 1초에 공전하는 각(°)
+  const DAYSPEEDS = [0.5, 1, 2.4]; // 하루 동안 보기: 1초에 지나가는 시간(시간)
+  // 하루에 태양에서 멀어지는 각: 학습지처럼 음력 1일 삭(0°) → 7~8일 상현(90°) → 15일 망(180°)이 되게 90° ÷ 7일 (약 13°)
+  const DAYPH = 90 / 7;
+  // 저녁 하늘에 그리는 날짜와 태양–지구–달 각. 각을 15°의 배수로 맞춰서 누르면 뜨고 지는 시각이 정각(7시, 9시…)이 돼요
+  const SKYPT = [[1, 0], [2, 15], [3, 30], [4, 45], [6, 60], [8, 90], [10, 120], [12, 135], [15, 180]];
+  const SKYD = SKYPT.slice(1).map(([d]) => d);
+  function skyE(d) {
+    const i = Math.max(1, SKYPT.findIndex(([k]) => k >= d)), [d0, e0] = SKYPT[i - 1], [d1, e1] = SKYPT[i];
+    return e0 + (e1 - e0) * clamp((d - d0) / (d1 - d0), 0, 1);
+  }
+  const watch = {}, hooks = { watch: null, change: null, big: null };
+  const el = document.createElement('div'); el.className = 'stage';
+  if (!window.THREE || !THREE.OrbitControls) {
+    el.innerHTML = '<div class="nogl">3D 화면을 불러오지 못했어요.<br>인터넷 연결을 확인하고 새로고침해 주세요.</div>';
+    const noop = () => {};
+    return { ok: false, el, S, watch, hooks, set: o => Object.assign(S, o), play: noop, step: noop, preset: noop, playSky: noop, playDay: noop, setPhase: ph => { S.dph = ph; }, stepHour: noop, nextDay: noop, DAY13: 360 / 27.3 };
+  }
+  el.innerHTML = '<canvas class="gl"></canvas><canvas class="ov"></canvas><div class="hud"><span></span></div>';
+  const glc = el.querySelector('.gl'), ov = el.querySelector('.ov'), ctx = ov.getContext('2d'), hudEl = el.querySelector('.hud span');
+  const renderer = new THREE.WebGLRenderer({ canvas: glc, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 400);
+  const controls = new THREE.OrbitControls(camera, glc);
+  // 두 손가락(마우스 오른쪽)으로 끌면 화면 중심을 옮길 수 있어요
+  controls.enableDamping = true; controls.dampingFactor = 0.12; controls.enablePan = true; controls.screenSpacePanning = true; controls.rotateSpeed = 0.6;
+  controls.minDistance = 6; controls.maxDistance = 70;
+  scene.add(new THREE.AmbientLight(0xffffff, 0.07));
+  // 햇빛: 아주 멀리 있는 태양에서 오는 나란한 빛 (오른쪽 → 왼쪽)
+  const sunLight = new THREE.DirectionalLight(0xffffff, 1.9); sunLight.position.set(50, 0, 0); scene.add(sunLight);
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const basic = (color, o) => new THREE.MeshBasicMaterial(Object.assign({ color }, o || {}));
+  const RM = 6, RE = 1.0, RMOON = 0.6; // 달 궤도 반지름, 지구·달 반지름 (교과서 그림처럼 크게 그렸어요)
+  // 위에서 볼 때 시계 반대 방향이 + (달의 공전 방향, 서→동). 0°는 태양 쪽(오른쪽), 90°는 화면 위쪽
+  const ring = (r, deg, y) => V(r * Math.cos(deg * D2R), y || 0, -r * Math.sin(deg * D2R));
+
+  function earthTexture() {
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
+    const g = c.getContext('2d');
+    const P = (lo, la) => [(lo + 180) / 360 * 1024, (90 - la) / 180 * 512];
+    const poly = (pts, fill) => { g.beginPath(); pts.forEach((p, i) => { const [x, y] = P(p[0], p[1]); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.closePath(); g.fillStyle = fill; g.fill(); };
+    g.fillStyle = '#1f5fae'; g.fillRect(0, 0, 1024, 512);
+    LAND.forEach(p => poly(p, '#4f9a55'));
+    poly(GREENLAND, '#e6eff4');
+    g.fillStyle = '#e6eff4'; g.fillRect(0, P(0, -68)[1], 1024, 512);
+    return new THREE.CanvasTexture(c);
+  }
+  // 달 표면: 바다(어두운 곳)를 지구 쪽 면에 그려서, 달이 늘 같은 면을 지구로 향하는 것도 보이게 해요
+  function moonTexture() {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 256;
+    const g = c.getContext('2d');
+    let seed = 7; const rnd = () => (seed = seed * 16807 % 2147483647) / 2147483647;
+    g.fillStyle = '#c4c2ba'; g.fillRect(0, 0, 512, 256);
+    g.fillStyle = '#8e8c86';
+    [[110, 90, 46, 30], [150, 122, 34, 26], [95, 142, 30, 22], [140, 74, 24, 18], [176, 96, 20, 16], [122, 168, 22, 14]].forEach(([x, y, rx, ry]) => { g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill(); });
+    for (let i = 0; i < 160; i++) { const x = rnd() * 512, y = 20 + rnd() * 216, r = 1 + rnd() * 4; g.fillStyle = rnd() < 0.5 ? 'rgba(90,90,85,.5)' : 'rgba(235,235,228,.6)'; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+    return new THREE.CanvasTexture(c);
+  }
+  const orbitG = new THREE.Group(); scene.add(orbitG);
+  const earthMesh = new THREE.Mesh(new THREE.SphereGeometry(RE, 48, 24), new THREE.MeshLambertMaterial({ map: earthTexture() })); orbitG.add(earthMesh);
+  earthMesh.rotation.y = -2.2;
+  const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(RMOON, 40, 20), new THREE.MeshLambertMaterial({ map: moonTexture() })); orbitG.add(moonMesh);
+  const orbitLine = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(Array.from({ length: 128 }, (_, i) => ring(RM, i / 128 * 360))), new THREE.LineBasicMaterial({ color: 0x9fc4ff, transparent: true, opacity: 0.55 }));
+  orbitG.add(orbitLine);
+  function arcArrow(r, a0, a1, color, th) {
+    const pts = []; for (let i = 0; i <= 30; i++) pts.push(ring(r, a0 + (a1 - a0) * i / 30));
+    const mat = basic(color), g = new THREE.Group();
+    g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, th, 8, false), mat));
+    const end = ring(r, a1), dir = end.clone().sub(ring(r, a1 - Math.sign(a1 - a0) * 2)).normalize();
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(th * 3.2, th * 9, 16), mat);
+    cone.position.copy(end).addScaledVector(dir, th * 3); cone.quaternion.setFromUnitVectors(V(0, 1, 0), dir);
+    g.add(cone); g.userData = { mid: ring(r, (a0 + a1) / 2) };
+    return g;
+  }
+  const arrA = arcArrow(RM, 110, 150, 0x7cc4ff, 0.05), arrB = arcArrow(RM, 290, 330, 0x7cc4ff, 0.05); orbitG.add(arrA, arrB);
+  /* 교과서 그림처럼 보기: 태양 쪽 반구는 노랗게, 반대쪽 반구는 어둡게 칠한 달 (방향은 늘 햇빛 쪽 고정)
+     SphereGeometry의 phi가 π/2 ~ 3π/2인 반쪽이 +x(태양) 쪽이에요. */
+  function toonMoon(lit, dark) {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(RMOON, 40, 20, Math.PI / 2, Math.PI), lit));
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(RMOON, 40, 20, -Math.PI / 2, Math.PI), dark));
+    return g;
+  }
+  const moonToon = toonMoon(basic(0xffd84a), basic(0x2b3150)); orbitG.add(moonToon);
+  /* 위에서·비스듬히 볼 때는 원근 때문에 달 옆면이 같이 보여서 노란 쪽이 반보다 커 보여요.
+     노랑/어둠 경계면이 보는 방향을 품도록 살짝 돌려서, 화면에서 늘 정확히 태양 쪽 반원이 노랗게 보이게 해요 */
+  const _v = V(0, 0, 0), _n = V(0, 0, 0), _x = V(1, 0, 0);
+  function faceView(g) {
+    _v.copy(camera.position).sub(g.position).normalize();
+    _n.copy(_x).addScaledVector(_v, -_v.x);
+    if (_n.lengthSq() < 1e-6) { g.quaternion.identity(); return; }
+    g.quaternion.setFromUnitVectors(_x, _n.normalize());
+  }
+  // 8개 위치의 달 (우주에서 본 모습: 모두 태양 쪽 절반이 밝아요)
+  const ghostG = new THREE.Group(); orbitG.add(ghostG);
+  const ghostReal = [], ghostToon = [], gLit = basic(0xffd84a, { transparent: true, opacity: 0.45 }), gDark = basic(0x2b3150, { transparent: true, opacity: 0.45 });
+  for (let k = 0; k < 8; k++) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(RMOON, 24, 12), new THREE.MeshLambertMaterial({ color: 0xd8d6cc, transparent: true, opacity: 0.4 }));
+    const t = toonMoon(gLit, gDark);
+    m.position.copy(ring(RM, k * 45)); t.position.copy(m.position); ghostG.add(m, t); ghostReal.push(m); ghostToon.push(t);
+  }
+
+  function preset() {
+    if (S.cam === 'earth') { camera.fov = 24; camera.updateProjectionMatrix(); return; }
+    // 화면이 좁을수록 멀리서 봐서 햇빛 화살표가 잘리지 않게 해요
+    const far = Math.max(1, 1.3 / (camera.aspect || 1.3));
+    camera.fov = 42; camera.updateProjectionMatrix();
+    controls.target.set(0, 0, 0);
+    if (S.cam === 'top') camera.position.set(0, 22 * far, 0.01);
+    else camera.position.set(0, 9 * far, 15 * far);
+    controls.update();
+    if (S.focus) applyFocus();
+  }
+  function applyView() {
+    orbitG.visible = S.view === 'orbit';
+    controls.enabled = S.view === 'orbit' && S.cam !== 'earth';
+    // 지구에서 볼 때는 궤도선이 달을 가로지르지 않게 숨겨요
+    orbitLine.visible = arrA.visible = arrB.visible = S.cam !== 'earth';
+  }
+  // 달 확대해서 따라가기: 화면 중심을 달로 옮기고 가까이 가요. 달이 공전해도 계속 따라가요
+  function applyFocus() {
+    if (S.focus && S.cam !== 'earth') {
+      const m = ring(RM, S.th), dir = camera.position.clone().sub(controls.target).normalize();
+      controls.minDistance = 1.6; controls.target.copy(m); camera.position.copy(m).addScaledVector(dir, 4.2); controls.update();
+    } else controls.minDistance = 6;
+  }
+  function set(o) {
+    const pv = S.view, pc = S.cam, pf = S.focus;
+    Object.assign(S, o);
+    if ('th' in o) S.goal = null;
+    applyView();
+    if (S.view !== pv || S.cam !== pc || (pf && !S.focus)) preset();
+    if (S.focus !== pf || (S.focus && (S.view !== pv || S.cam !== pc))) applyFocus();
+  }
+  function play() {
+    S.goal = null;
+    // 저녁 하늘에서 고른 달: 뜰 때 → 남중 → 지기 직전에서 한 번씩 멈춰요. 다 보면 뜰 때부터 다시
+    if (S.view === 'day' && S.stops && !S.playing && S.stopIdx >= S.stops.length) { S.hr = S.stops[0]; S.stopIdx = 1; S.playing = true; return; }
+    S.playing = !S.playing;
+    if (S.view === 'day' && S.stops) return;
+    if (S.view === 'sky' && S.playing && S.sd >= 15) S.sd = 2;
+    if (S.view === 'day' && S.playing && S.hr >= S.hr0 + 24) playDay();
+  }
+  // 하루 동안: 달이 뜨기 1시간 전부터 24시간을 보여 줘요. 달은 해보다 (공전한 각 ÷ 15)시간 늦게 떠요
+  const riseHr = ph => 6 + norm(ph) / 15;
+  function playDay() { S.hr = S.hr0 = riseHr(S.dph) - 1; S.dprev = null; S.stops = null; S.playing = true; }
+  function setPhase(ph) { S.dph = ph; S.dprev = null; S.stops = null; S.playing = false; S.hr0 = riseHr(ph) - 1; S.hr = riseHr(ph) + 6; }
+  // 저녁 하늘에서 누른 달(음력 d일)을 하루 동안 보기로: 뜬 직후에 멈춘 채로 시작해요
+  function pickDay(d) {
+    const ph = skyE(d), r = riseHr(ph);
+    S.skyFrom = S.sd; S.view = 'day'; applyView();
+    S.dph = ph; S.dprev = null; S.playing = false;
+    // 해가 진 직후(오후 6시)에도 멈춰서 저녁 하늘에서 본 자리와 이어지게 해요. 뜨는 때·남중과 겹치면 한 번만 멈춰요
+    const st = [[r, 'rise'], [r + 6, 'top'], [r + 12, 'set']], sun = [18, 42].find(t => t >= r && t < r + 12);
+    const same = st.find(([t]) => Math.abs(t - sun) < 0.01);
+    if (same) same[1] += '+sun'; else if (sun != null) st.push([sun, 'sun']);
+    st.sort((a, b) => a[0] - b[0]);
+    S.stops = st.map(([t]) => t); S.stopKinds = st.map(([, k]) => k); S.stopIdx = 1; S.hr0 = r; S.hr = S.stops[0];
+  }
+  // 하루 동안 보기에서 1시간 넘기기
+  function stepHour() { S.playing = false; S.hr = Math.min(S.hr + 1, S.hr0 + 24); }
+  // 다음 날 같은 시각: 시계는 그대로 두고 달만 공전한 만큼(태양 기준 약 12~13°) 동쪽으로 옮겨요. 어제 달은 흐리게 남겨요
+  function nextDay() { S.playing = false; S.stops = null; S.dprev = S.dph; S.dph = norm(S.dph + DAYPH); S.hr0 = S.hr; }
+  function step(deg) { S.playing = false; S.goal = (S.goal == null ? S.th : S.goal) + deg; }
+  // 음력 2일부터 15일까지 해가 진 직후 하늘을 이어서 보여 줘요
+  function playSky() { S.sd = 2; S.playing = true; }
+
+  let W = 1, H = 1, DPR = 1;
+  new ResizeObserver(() => {
+    W = el.clientWidth; H = el.clientHeight; if (!W || !H) return;
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setSize(W, H, false); ov.width = Math.round(W * DPR); ov.height = Math.round(H * DPR);
+    camera.aspect = W / H; camera.updateProjectionMatrix();
+    if (S.view === 'orbit') preset();
+  }).observe(el);
+
+  const M = new THREE.Matrix4();
+  function P(v) {
+    const e = M.elements, x = v.x, y = v.y, z = v.z, w = e[3] * x + e[7] * y + e[11] * z + e[15];
+    if (w < 0.05) return null;
+    return [((e[0] * x + e[4] * y + e[8] * z + e[12]) / w + 1) * W / 2, (1 - (e[1] * x + e[5] * y + e[9] * z + e[13]) / w) * H / 2];
+  }
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.arc(x + w - r, y + r, r, -Math.PI / 2, 0); ctx.lineTo(x + w, y + h - r); ctx.arc(x + w - r, y + h - r, r, 0, Math.PI / 2); ctx.lineTo(x + r, y + h); ctx.arc(x + r, y + h - r, r, Math.PI / 2, Math.PI); ctx.lineTo(x, y + r); ctx.arc(x + r, y + r, r, Math.PI, Math.PI * 1.5); ctx.closePath(); }
+  // 수업 모드(TV)에서는 멀리서도 읽히게 화면 속 글자를 키워요 (화면이 넓을수록 더 크게)
+  let FS = 1;
+  function tag(text, q, o) {
+    if (!q) return; o = o || {};
+    const size = (o.size || 15) * (o.fixed ? 1 : FS);
+    ctx.font = `${size}px "Do Hyeon","Noto Sans KR",sans-serif`;
+    const w = ctx.measureText(text).width + 16, h = size + 10;
+    // 글자가 커져도 화면 밖으로 잘리지 않게 안쪽으로 밀어 넣어요
+    const x = clamp(q[0] - w / 2 + (o.dx || 0), 4, Math.max(4, W - w - 4)), y = clamp(q[1] - h / 2 + (o.dy || 0), 4, Math.max(4, H - h - 4));
+    ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
+    ctx.fillStyle = o.bg || 'rgba(8,14,40,.8)'; rr(x, y, w, h, h / 2); ctx.fill();
+    ctx.fillStyle = o.fg || '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, x + w / 2, y + h / 2 + 1);
+    ctx.globalAlpha = 1;
+  }
+  /* 천체 옆 이름표: 화면에서 천체(중심 c, 반지름 rad) 바깥으로 u 방향에 붙여서 천체를 가리지 않게 해요.
+     화면 밖으로 나가거나 오른쪽 위 "지구에서 본 모양" 창에 겹치면 다른 방향으로 옮겨요. */
+  let placed = []; // 이번 장면에 이미 붙인 이름표 상자 (서로 겹치지 않게)
+  function tagAway(text, c, rad, u, o) {
+    if (!c) return; o = o || {};
+    const size = (o.size || 15) * (o.fixed ? 1 : FS); ctx.font = `${size}px "Do Hyeon","Noto Sans KR",sans-serif`;
+    const w = ctx.measureText(text).width + 16, h = size + 10, ib = S.inset && S.view === 'orbit' && S.cam !== 'earth' ? insetBox() : null;
+    // 먼저 원하는 방향, 그다음 반대·위·아래·대각선 순서로 빈자리를 찾아요. o.avoid: 가리면 안 되는 다른 천체 [x, y, 반지름]
+    const L = Math.hypot(u[0], u[1]) || 1, ux0 = u[0] / L, uy0 = u[1] / L, s2 = Math.SQRT1_2;
+    const cands = [[ux0, uy0], [-ux0, -uy0], [0, -1], [0, 1], [s2, -s2], [-s2, -s2], [s2, s2], [-s2, s2]];
+    const boxHitsCircle = (x, y, [cx, cy, cr]) => Math.hypot(clamp(cx, x - w / 2, x + w / 2) - cx, clamp(cy, y - h / 2, y + h / 2) - cy) < cr + 4;
+    let best = null;
+    for (const [ux, uy] of cands) {
+      const d = rad + 8 + Math.abs(ux) * w / 2 + Math.abs(uy) * h / 2, x = c[0] + ux * d, y = c[1] + uy * d;
+      const out = x - w / 2 < 2 || x + w / 2 > W - 2 || y - h / 2 < 2 || y + h / 2 > H - 2;
+      const boxHit = b => x + w / 2 > b[0] && x - w / 2 < b[0] + b[2] && y + h / 2 > b[1] && y - h / 2 < b[1] + b[3];
+      const hit = (ib && boxHit(ib)) || placed.some(boxHit) || (o.avoid || []).some(a => a && boxHitsCircle(x, y, a));
+      if (!out && !hit) { best = [x, y]; break; }
+      if (!best) best = [clamp(x, w / 2 + 2, W - w / 2 - 2), clamp(y, h / 2 + 2, H - h / 2 - 2)];
+    }
+    // 꼭 필요하지 않은 이름표는 빈자리가 없으면 그리지 않아요
+    if (o.optional) {
+      const [bx, by] = best, ok = !(o.avoid || []).some(a => a && boxHitsCircle(bx, by, a)) && !placed.some(b => bx + w / 2 > b[0] && bx - w / 2 < b[0] + b[2] && by + h / 2 > b[1] && by - h / 2 < b[1] + b[3]);
+      if (!ok) return;
+    }
+    placed.push([best[0] - w / 2, best[1] - h / 2, w, h]);
+    tag(text, best, o);
+  }
+  function head(q, dx, dy, s, color) {
+    const L = Math.hypot(dx, dy); if (L < 0.01) return;
+    const ux = dx / L, uy = dy / L;
+    ctx.beginPath();
+    ctx.moveTo(q[0] + ux * s, q[1] + uy * s);
+    ctx.lineTo(q[0] - ux * s * 0.5 - uy * s * 0.62, q[1] - uy * s * 0.5 + ux * s * 0.62);
+    ctx.lineTo(q[0] - ux * s * 0.15, q[1] - uy * s * 0.15);
+    ctx.lineTo(q[0] - ux * s * 0.5 + uy * s * 0.62, q[1] - uy * s * 0.5 - ux * s * 0.62);
+    ctx.closePath(); ctx.fillStyle = color; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.stroke();
+  }
+  function arrowLine(a, b, color, w, hs) {
+    if (!a || !b) return;
+    ctx.strokeStyle = color; ctx.lineWidth = w || 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    head(b, b[0] - a[0], b[1] - a[1], hs || 11, color);
+  }
+  function drawSunDisk(p, r) {
+    const gr = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], r * 2.2);
+    gr.addColorStop(0, 'rgba(255,236,150,1)'); gr.addColorStop(0.45, 'rgba(255,170,40,.95)'); gr.addColorStop(1, 'rgba(255,120,0,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(p[0], p[1], r * 2.2, 0, Math.PI * 2); ctx.fill();
+  }
+  // 지구에서 본 달 모양 (rot: 밝은 쪽을 돌리는 각, 라디안)
+  function phaseDisk(x, y, r, th, rot, dark) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0);
+    ctx.fillStyle = dark || '#2b3150'; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    if (isNew(th)) { ctx.strokeStyle = '#9aa7d6'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
+    // 밝은 부분은 실제 달 사진으로 칠해요 (사진을 불러오기 전에는 노랗게)
+    ctx.fillStyle = '#ffd84a'; ctx.beginPath();
+    phasePts(th).forEach(([px, py], i) => { if (i) ctx.lineTo(px * r, py * r); else ctx.moveTo(px * r, py * r); });
+    ctx.closePath();
+    if (moonImg.complete && moonImg.naturalWidth) { ctx.save(); ctx.clip(); ctx.rotate(-(rot || 0)); ctx.drawImage(moonImg, -r, -r, r * 2, r * 2); ctx.restore(); } else ctx.fill();
+    if (!isNew(th)) { ctx.strokeStyle = 'rgba(200,210,240,.55)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  /* 빛 받는 반쪽(노랑)과 지구에서 보이는 반쪽(분홍) — 교과서처럼 두 반쪽이 겹친 부분이 지구에서 보이는 모양이에요 */
+  function drawHalves(m, th, avoid) {
+    const r1 = RMOON * 1.25, r2 = RMOON * 1.5;
+    const pt = (deg, r) => V(m.x + r * Math.cos(deg * D2R), 0, m.z - r * Math.sin(deg * D2R));
+    const arc = (a0, a1, r, color, w) => {
+      ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath(); let pen = false;
+      for (let a = a0; a <= a1 + 1e-6; a += 6) { const q = P(pt(a, r)); if (!q) { pen = false; continue; } if (pen) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); pen = true; }
+      ctx.stroke();
+    };
+    const chord = (deg, r, color, w, dash) => {
+      const a = P(pt(deg + 90, r)), b = P(pt(deg - 90, r)); if (!a || !b) return;
+      ctx.strokeStyle = color; ctx.lineWidth = w; ctx.setLineDash(dash || []); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.setLineDash([]);
+    };
+    const toE = th + 180;
+    // 그림처럼 보기에서는 달의 밝은 반쪽이 이미 노랗게 칠해져 있어서 노란 반원은 실제 달 표면 보기에서만 그려요
+    if (!S.toon) { arc(-90, 90, r1, '#ffcf5a', 6); chord(0, r1, 'rgba(255,207,90,.9)', 2, [6, 5]); }
+    arc(toE - 90, toE + 90, r2, '#ff5fa2', 4); chord(toE, r2, '#ff3b7a', 3.5);
+    const [q, r] = projR(m, RMOON);
+    if (!S.toon) tagAway('☀ 빛 받는 쪽', q, r * 1.6, dirTo(q, pt(0, r1)), { size: 13, bg: '#ffcf5a', fg: '#2a1c00', avoid });
+    tagAway('👁 지구에서 보이는 쪽 (🌍 지구 방향)', q, r * 1.6, dirTo(q, pt(toE, r2)), { size: 13, bg: '#ff5fa2', fg: '#fff', avoid });
+  }
+  // 구(중심 c, 반지름 R)가 화면에 보이는 중심과 반지름(px)
+  function projR(c, R) {
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+    const q = P(c), q2 = P(c.clone().addScaledVector(right, R)); if (!q || !q2) return [q, 0];
+    return [q, Math.hypot(q2[0] - q[0], q2[1] - q[1])];
+  }
+  const dirTo = (q, v) => { const p = P(v); return q && p ? [p[0] - q[0], p[1] - q[1]] : [1, 0]; };
+  // 달의 둥근 테두리: 어두운 쪽도 달의 모양이 보이게 화면에서 원으로 그려요
+  function moonOutline(m) {
+    const [q, r] = projR(m, RMOON); if (!q || !r) return;
+    ctx.strokeStyle = 'rgba(220,228,255,.85)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, Math.PI * 2); ctx.stroke();
+  }
+  // 햇빛 받는 쪽만 밝아요 (노란 반쪽 옆, 햇빛 쪽에 붙인 이름표)
+  function drawLit(m, avoid) {
+    const [q, r] = projR(m, RMOON);
+    tagAway('☀ 햇빛 받는 쪽만 밝아요 (노란 반쪽)', q, r, dirTo(q, m.clone().add(V(1, 0, 0))), { size: 15, bg: '#ffcf5a', fg: '#2a1c00', avoid });
+  }
+  // 8개 위치 보기에서는 오른쪽 위 초승달 그림을 가리지 않게 조금 작게
+  let insetLeft = false;
+  function insetAt(left) { const s = S.all8 ? clamp(Math.min(W, H) * 0.17, 110, 170) * Math.min(FS, 1.4) : clamp(Math.min(W, H) * 0.4, 150, 320) * Math.min(FS, 1.3); return left ? [12, 52, s, s] : [W - s - 12, 12, s, s]; }
+  function insetBox() { return insetAt(insetLeft); }
+  // 창이 달·지구를 가리면 반대쪽(왼쪽 위)으로 옮겨요
+  function placeInset(circles) {
+    const hits = b => circles.some(c => c && Math.hypot(clamp(c[0], b[0], b[0] + b[2]) - c[0], clamp(c[1], b[1], b[1] + b[3]) - c[1]) < c[2] + 6);
+    insetLeft = hits(insetAt(false)) && !hits(insetAt(true));
+  }
+  // 실제 달처럼 보이는 그림 (회색 표면, 바다, 크레이터, 가장자리가 살짝 어두움) — 한 번만 만들어 둬요
+  const realMoon = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d'); let sd = 11; const rnd = () => (sd = sd * 16807 % 2147483647) / 2147483647;
+    const gr = g.createRadialGradient(118, 112, 10, 128, 128, 128); gr.addColorStop(0, '#e4e2da'); gr.addColorStop(0.8, '#c3c1b8'); gr.addColorStop(1, '#8f8d86');
+    g.fillStyle = gr; g.beginPath(); g.arc(128, 128, 128, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(110,108,102,.55)';
+    [[100, 80, 40, 28], [150, 100, 30, 24], [88, 130, 28, 22], [130, 60, 22, 16], [170, 130, 20, 26], [115, 165, 24, 16]].forEach(([x, y, rx, ry]) => { g.beginPath(); g.ellipse(x, y, rx, ry, 0.3, 0, Math.PI * 2); g.fill(); });
+    for (let i = 0; i < 90; i++) { const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * 120, r = 1 + rnd() * 4; g.fillStyle = rnd() < 0.5 ? 'rgba(90,90,85,.45)' : 'rgba(245,245,238,.55)'; g.beginPath(); g.arc(128 + Math.cos(a) * d, 128 + Math.sin(a) * d, r, 0, Math.PI * 2); g.fill(); }
+    return c;
+  })();
+  function realPhase(x, y, r, th) {
+    ctx.fillStyle = '#121520'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.beginPath();
+    phasePts(th).forEach(([px, py], i) => { if (i) ctx.lineTo(x + px * r, y + py * r); else ctx.moveTo(x + px * r, y + py * r); });
+    ctx.closePath(); ctx.clip(); ctx.drawImage(moonImg.complete && moonImg.naturalWidth ? moonImg : realMoon, x - r, y - r, r * 2, r * 2); ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.1)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+  }
+  function drawInset(th) {
+    const [x, y, s] = insetBox();
+    ctx.fillStyle = 'rgba(4,6,14,.94)'; rr(x, y, s, s, 14); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1; rr(x, y, s, s, 14); ctx.stroke();
+    tag('👀 지구에서 본 모양', [x + s / 2, y + 20 * Math.min(FS, 1.4)], { fixed: true, size: clamp(s / 14, 13, 19) * Math.min(FS, 1.4), bg: 'transparent', fg: '#cfe0ff' });
+    realPhase(x + s / 2, y + s * 0.52, s * 0.31, th);
+    if (S.hudAns) tag(`${phName(th)} · 음력 약 ${lunarDay(th)}일`, [x + s / 2, y + s - 20 * Math.min(FS, 1.4)], { fixed: true, size: clamp(s / 16, 13, 18) * Math.min(FS, 1.2), bg: '#ffcf5a', fg: '#2a1c00' });
+  }
+  // 위에서 본 작은 지도 (지구·달 위치와 햇빛 방향)
+  function miniMap(th, x, y, s) {
+    const c = [x + s / 2, y + s / 2 + 8], R = s * 0.3;
+    ctx.fillStyle = 'rgba(8,14,40,.9)'; rr(x, y, s, s, 14); ctx.fill();
+    tag('⬇️ 위에서 본 위치', [c[0], y + 15], { size: 13, bg: 'transparent', fg: '#cfe0ff' });
+    ctx.strokeStyle = 'rgba(159,196,255,.6)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(c[0], c[1], R, 0, Math.PI * 2); ctx.stroke();
+    const mp = [c[0] + R * Math.cos(th * D2R), c[1] - R * Math.sin(th * D2R)];
+    ctx.strokeStyle = '#ff5fa2'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(c[0], c[1]); ctx.lineTo(mp[0], mp[1]); ctx.stroke();
+    ctx.fillStyle = '#3f86d6'; ctx.beginPath(); ctx.arc(c[0], c[1], 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2b3150'; ctx.beginPath(); ctx.arc(mp[0], mp[1], 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f4efd9'; ctx.beginPath(); ctx.arc(mp[0], mp[1], 6, -Math.PI / 2, Math.PI / 2); ctx.fill();
+    [-0.5, 0, 0.5].forEach(k => arrowLine([x + s - 6, c[1] + k * s * 0.55], [x + s - 22, c[1] + k * s * 0.55], '#ffcf5a', 2, 6));
+  }
+  function drawOrbit() {
+    const th = S.th, m = ring(RM, th), qM = P(m), qE = P(V(0, 0, 0));
+    const onScr = q => q && q[0] > 24 && q[0] < W - 24 && q[1] > 24 && q[1] < H - 24;
+    // 확대해서 지구가 화면 밖으로 나가면 달 옆 햇빛 화살표, 가장자리 '지구 쪽' 표시, 위에서 본 지도로 위치 관계를 알려 줘요
+    const zoomed = S.focus || !onScr(qE);
+    // 햇빛 화살표 (오른쪽 → 왼쪽)
+    if (!zoomed) {
+      [-6, -3.2, 3.2, 6].forEach(z => arrowLine(P(V(10.8, 0, z)), P(V(8.8, 0, z)), '#ffcf5a', 3.5, 12));
+      tag('☀ 햇빛', P(V(9.8, 0, 7.6)), { size: 17, bg: '#ffcf5a', fg: '#2a1c00' });
+    }
+    if (S.all8) {
+      const rd = clamp(H / 26, 11, 28), n = norm(th), kc = Math.round(n / 45) % 8, near = Math.abs(((n - kc * 45 + 540) % 360) - 180) < 10;
+      // 지금 달의 위치를 분홍 고리와 지구 → 달 선으로 강조하고, 바깥의 해당 모양도 크게 보여 줘요
+      if (qE && qM) { ctx.strokeStyle = '#ff5fa2'; ctx.lineWidth = 3; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.moveTo(qE[0], qE[1]); ctx.lineTo(qM[0], qM[1]); ctx.stroke(); ctx.setLineDash([]); }
+      const qr = P(m.clone().add(V(RMOON * 1.9, 0, 0)));
+      if (qM && qr) { ctx.strokeStyle = '#ff5fa2'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(qM[0], qM[1], Math.max(18, Math.hypot(qr[0] - qM[0], qr[1] - qM[1])), 0, Math.PI * 2); ctx.stroke(); }
+      for (let k = 0; k < 8; k++) {
+        const q = P(ring(RM + 2.7, k * 45)); if (!q) continue;
+        const hi = near && k === kc, r = hi ? rd * 1.45 : rd;
+        ctx.globalAlpha = near && !hi ? 0.55 : 1;
+        phaseDisk(q[0], q[1], r, k * 45, 0);
+        ctx.globalAlpha = 1;
+        if (hi) { ctx.strokeStyle = '#ff5fa2'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(q[0], q[1], r + 6, 0, Math.PI * 2); ctx.stroke(); }
+        if (S.hudAns) tag(PH8[k], [q[0], q[1] + r + 14 * FS], hi ? { size: 17, bg: '#ff5fa2', fg: '#fff' } : { size: 13, bg: 'rgba(8,14,40,.8)', fg: '#ffd9a8', alpha: near ? 0.6 : 1 });
+      }
+      // 위·아래 가운데에는 상현·하현 그림이 있어서 왼쪽 아래 구석에 둬요
+      ctx.font = `${15 * FS}px "Do Hyeon","Noto Sans KR",sans-serif`;
+      if (W > 760 && !S.focus) tag('바깥 그림: 지구에서 본 모양 · 안쪽 달: 우주에서 본 모습', [14 + (ctx.measureText('바깥 그림: 지구에서 본 모양 · 안쪽 달: 우주에서 본 모습').width + 16) / 2, H - 24 * FS], { size: 15, bg: 'rgba(8,14,40,.85)', fg: '#ffd9a8' });
+    }
+    // 왼쪽 위 날짜 표시(hud) 자리에는 이름표를 붙이지 않아요
+    const ha = hudEl.getBoundingClientRect(), ea = el.getBoundingClientRect(), hb = [ha.left - ea.left, ha.top - ea.top, ha.width, ha.height];
+    placed = [hb];
+    // ㉮~㉵ 번호는 제자리에 두고, 다른 이름표가 피해 가도록 상자를 기록해 둬요
+    if (S.marks) POS.forEach(([n, a]) => { const q = P(ring(RM + 1.75, a)); if (!q) return; tag(n, q, { size: 19, bg: '#ffffff', fg: '#1b1400' }); placed.push([q[0] - 18, q[1] - 15, 36, 30]); });
+    // 이름표가 지구·달을 가리지 않도록, 화면에 보이는 두 천체의 원을 피해서 붙여요
+    const rE = projR(V(0, 0, 0), RE)[1], rM = projR(m, RMOON)[1];
+    const cE = qE && [qE[0], qE[1], rE], cM = qM && [qM[0], qM[1], S.half ? rM * 1.6 : rM];
+    const ms = clamp(Math.min(W, H) * 0.26, 100, 170), mb = [12, H - ms - 12, ms, ms];
+    let pE = null, eDir = null;
+    if (zoomed && qM) {
+      placed.push(mb);
+      // 햇빛: 달 위아래로 지나가는 노란 화살표 (가운데는 이름표 자리라 비워 둬요)
+      const sv = dirTo(qM, m.clone().add(V(1, 0, 0))), sl = Math.hypot(sv[0], sv[1]);
+      if (sl > 2) {
+        const u = [sv[0] / sl, sv[1] / sl], n = [-u[1], u[0]], a0 = rM * 1.5, a1 = a0 + clamp(rM * 1.6, 60, 150);
+        const at = (d, k) => [qM[0] + u[0] * d + n[0] * k * rM, qM[1] + u[1] * d + n[1] * k * rM];
+        [-1.3, 1.3].forEach(k => arrowLine(at(a1, k), at(a0, k), '#ffcf5a', 4, 14));
+        const tails = [at(a1, -1.3), at(a1, 1.3)].sort((p, q) => p[1] - q[1]);
+        tagAway('☀ 햇빛', tails[1], 6, u, { size: 16, bg: '#ffcf5a', fg: '#2a1c00' }); // 위쪽은 "지구에서 본 모양" 창 자리라 아래 화살표에
+      }
+      // 지구 쪽: 달에서 지구 방향으로 점선을 긋고, 화면 가장자리에 작은 지구를 그려요
+      const gv = dirTo(qM, m.clone().multiplyScalar(0.8)), gl = Math.hypot(gv[0], gv[1]);
+      if (!onScr(qE) && gl > 1) {
+        const e = [gv[0] / gl, gv[1] / gl], lim = (p, d, lo, hi) => d > 0 ? (hi - p) / d : d < 0 ? (lo - p) / d : 1e9;
+        let t = Math.min(lim(qM[0], e[0], 34, W - 34), lim(qM[1], e[1], 34, H - 34));
+        // 왼쪽 아래 지도와 왼쪽 위 날짜 표시는 피해요
+        const inMap = p => (p[0] < mb[0] + mb[2] + 22 && p[1] > mb[1] - 22) || (p[0] < hb[0] + hb[2] + 30 && p[1] < hb[1] + hb[3] + 30);
+        while (t > rM * 1.6 && inMap([qM[0] + e[0] * t, qM[1] + e[1] * t])) t -= 8;
+        if (t > rM * 1.6) {
+          pE = [qM[0] + e[0] * t, qM[1] + e[1] * t]; eDir = e;
+          ctx.strokeStyle = 'rgba(124,196,255,.85)'; ctx.lineWidth = 3; ctx.setLineDash([9, 7]); ctx.beginPath();
+          ctx.moveTo(qM[0] + e[0] * rM * 1.15, qM[1] + e[1] * rM * 1.15); ctx.lineTo(pE[0] - e[0] * 18, pE[1] - e[1] * 18); ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = '#3f86d6'; ctx.beginPath(); ctx.arc(pE[0], pE[1], 15, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+          head([pE[0] + e[0] * 26, pE[1] + e[1] * 26], e[0], e[1], 10, '#7cc4ff');
+        }
+      }
+    }
+    if (S.inset) placeInset([cM, cE]);
+    if (S.toon) moonOutline(m);
+    if (pE) tagAway('🌍 지구는 이쪽', pE, 17, [-eDir[0], -eDir[1]], { size: 14, bg: '#3f86d6', fg: '#fff', avoid: [cM] });
+    else if (onScr(qE)) tagAway('지구', qE, rE, [0, 1], { size: 14, avoid: [cM] });
+    // 달 이름표: 반쪽 표시를 켜면 그 바깥 위쪽에, 8개 위치 보기에서는 빈 안쪽(지구 쪽)에 붙여요
+    if (S.all8) tagAway('지금 달', qM, Math.max(18, rM * 1.9), dirTo(qM, V(0, 0, 0)), { size: 17, bg: '#ff5fa2', fg: '#fff', avoid: [cE] });
+    else tagAway('달', qM, S.half ? rM * 1.6 : rM, [0, -1], { size: 14, avoid: [cE] });
+    if (S.half) drawHalves(m, th, [cE, cM]);
+    else if (S.lit && S.toon) drawLit(m, [cE]);
+    const qa = P(arrA.userData.mid), ib = insetBox(), underInset = S.inset && qa && qa[0] > ib[0] - 80 && qa[0] < ib[0] + ib[2] + 80 && qa[1] > ib[1] - 30 && qa[1] < ib[1] + ib[3] + 30;
+    if (!S.all8 && !S.marks && !S.deg13 && !underInset) tagAway('달의 공전 방향 (서 → 동)', qa, 0, [0, -1], { size: 13, bg: 'rgba(124,196,255,.9)', fg: '#06142b', avoid: [cE, cM], optional: true });
+    if (S.inset) drawInset(th);
+    if (zoomed && qM) miniMap(th, ...mb.slice(0, 3));
+  }
+  // 지구에서 본 달: 아래 왼쪽에 위에서 본 작은 지도를 함께 보여 줘요
+  function drawEarthView() {
+    const th = S.th, m = ring(RM, th), qM = P(m), qT = P(m.clone().add(V(0, RMOON, 0)));
+    if (qM && qT) {
+      const r = Math.hypot(qT[0] - qM[0], qT[1] - qM[1]);
+      // 지구에서 본 달은 실제 달 사진으로 위상을 그려요 (어두운 쪽은 테두리만 보이게 짙게)
+      if (S.toon) phaseDisk(qM[0], qM[1], r, th, 0, '#1b2140');
+      if (S.toon) { ctx.strokeStyle = 'rgba(220,228,255,.85)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(qM[0], qM[1], r, 0, Math.PI * 2); ctx.stroke(); }
+      else { ctx.strokeStyle = 'rgba(160,175,220,.35)'; ctx.lineWidth = 2; ctx.setLineDash([7, 6]); ctx.beginPath(); ctx.arc(qM[0], qM[1], r, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
+      if (S.hudAns) tag(phName(th), [qM[0], qM[1] + r + 30 * FS], { size: 22, bg: '#ffcf5a', fg: '#2a1c00' });
+    }
+    const s = clamp(Math.min(W, H) * 0.3, 110, 180);
+    miniMap(th, 12, H - s - 50, s);
+    tag('👀 지구에서 본 달 (스마트 기기로 찍은 모습)', [W / 2, H - 24], { size: 16, bg: 'rgba(8,14,40,.85)', fg: '#cfe0ff' });
+  }
+
+  /* 해가 진 직후 남쪽을 보고 선 하늘 (왼쪽 동, 오른쪽 서) — 교과서 그림처럼 음력 2일 ~ 15일 달의 위치와 모양.
+     태양과 달 사이의 각은 하루에 약 12~13°씩 커져요. 달 모양은 교과서 그림처럼 오른쪽이 밝게 세워서 그려요. */
+  let seed = 3, skyHits = []; const rnd = () => (seed = seed * 16807 % 2147483647) / 2147483647;
+  el.addEventListener('click', e => {
+    if (S.view !== 'sky') return;
+    const b = el.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+    // 겹친 달은 나중에 그린(위에 있는) 달부터 찾아요
+    const hit = skyHits.slice().reverse().find(([hx, hy, hr]) => Math.hypot(x - hx, y - hy) < hr);
+    if (hit) { pickDay(hit[3]); if (hooks.change) hooks.change('pick'); }
+  });
+  el.addEventListener('mousemove', e => {
+    if (S.view !== 'sky') { el.style.cursor = ''; return; }
+    const b = el.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+    el.style.cursor = skyHits.some(([hx, hy, hr]) => Math.hypot(x - hx, y - hy) < hr) ? 'pointer' : '';
+  });
+  const STARS = Array.from({ length: 70 }, () => [rnd(), rnd() * 0.75, 0.6 + rnd() * 1.2]);
+  function drawSky() {
+    const y0 = H * 0.8, cx = W / 2, Rx = W * 0.42, E0 = skyE;
+    // "위에서 본 모습" 지도가 위쪽 두 구석 어디에 놓아도 달을 가리면, 달이 지나는 길을 낮춰서 지도 아래로 지나가게 해요
+    const ms = mapSize(), rm = clamp(H * 0.042, 12, 30) + 10 + 22 * FS; // 달 위의 날짜 이름표까지 비켜 가게
+    const shown = SKYD.filter(d => d <= S.sd - 0.05).concat([S.sd]);
+    const blocked = Ry => [[W - ms - 12, 12], [12, 52]].every(([bx, by]) => shown.some(d => {
+      const e = Math.min(E0(d), 174) * D2R, px = cx + Rx * Math.cos(e), py = y0 - Ry * Math.sin(e);
+      return px + rm > bx && px - rm < bx + ms && py + rm > by && py - rm < by + ms;
+    }));
+    const Ry = blocked(y0 * 0.8) ? Math.max(y0 * 0.45, y0 - ms - 52 - rm) : y0 * 0.8;
+    const sky = ctx.createLinearGradient(0, 0, 0, y0); sky.addColorStop(0, '#081233'); sky.addColorStop(0.7, '#1f2d63'); sky.addColorStop(1, '#4a4777');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, y0);
+    const sunP = [cx + Rx, y0 + 8];
+    const glow = ctx.createRadialGradient(sunP[0], y0, 0, sunP[0], y0, W * 0.45);
+    glow.addColorStop(0, 'rgba(255,150,80,.6)'); glow.addColorStop(1, 'rgba(255,150,80,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, y0);
+    ctx.fillStyle = 'rgba(255,255,255,.7)'; STARS.forEach(([sx, sy, sr]) => { ctx.beginPath(); ctx.arc(sx * W, sy * y0, sr, 0, Math.PI * 2); ctx.fill(); });
+    const at = e => [cx + Rx * Math.cos(e * D2R), y0 - Ry * Math.sin(e * D2R)];
+    ctx.strokeStyle = 'rgba(255,211,77,.35)'; ctx.lineWidth = 3; ctx.setLineDash([8, 7]); ctx.beginPath();
+    for (let e = 0; e <= 180; e += 3) { const q = at(e); if (e) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); }
+    ctx.stroke(); ctx.setLineDash([]);
+    drawSunDisk(sunP, 14);
+    const E = skyE, r = clamp(H * 0.042, 12, 30), cur = S.sd;
+    // 하늘에서 달의 어두운 부분은 거의 보이지 않아요
+    // 그린 달마다 누를 수 있는 자리를 기록해 둬요 (누르면 그 달이 하루 동안 뜨고 지는 모습으로 바뀌어요)
+    skyHits = [];
+    // 15일 보름달(180°)은 지평선에 걸리므로 그림은 살짝 위에 그려요 (모양은 그대로)
+    const moon = (d, alpha) => { const e = E(d), p = at(Math.min(e, 174)); ctx.globalAlpha = alpha; phaseDisk(p[0], p[1], r, e, 0, 'rgba(60,70,120,.3)'); ctx.globalAlpha = 1; skyHits.push([p[0], p[1], r + 10, d]); return p; };
+    // 이름표가 '위에서 본 모습' 지도(지난 화면에 그린 자리)에 가려지면 달 아래쪽에 붙여요
+    const underMap = (x, y) => lastMap && x > lastMap[0] - 50 * FS && x < lastMap[0] + lastMap[2] + 50 * FS && y > lastMap[1] - 20 && y < lastMap[1] + lastMap[2] + 20;
+    SKYD.forEach(d => { if (d > cur - 0.05) return; const p = moon(d, 0.6), ly = underMap(p[0], p[1] - r - 14 * FS) ? p[1] + r + 14 * FS : p[1] - r - 14 * FS; tag(d === 8 ? '7~8일경' : `${d}일경`, [p[0], ly], { size: 13, bg: 'rgba(8,14,40,.75)', fg: '#cfe0ff' }); });
+    const p = moon(cur, 1);
+    // 지평선 가까이 있으면 이름표를 달 위쪽에 붙여요 (땅에 가려지지 않게)
+    const low = p[1] + r + 54 * FS > y0, dy = low ? -1 : 1;
+    tag(`음력 ${Math.floor(cur)}일`, [p[0], p[1] + dy * (r + 16 * FS)], { size: 15, bg: '#ffcf5a', fg: '#2a1c00' });
+    if (S.hudAns) tag(phName(E(cur)), [p[0], p[1] + dy * (r + 42 * FS)], { size: 15, bg: 'rgba(8,14,40,.85)', fg: '#ffd9a8' });
+    ctx.fillStyle = '#141a2e'; ctx.fillRect(0, y0, W, H - y0);
+    tag('태양 (막 졌어요)', [sunP[0] - 20, y0 + 22], { size: 13 });
+    tag('남', [cx, y0 + 24], { size: 24, bg: '#ff8a3d', fg: '#fff' });
+    tag('← 동', [50, y0 + 24], { size: 18, bg: '#ff8a3d', fg: '#fff' });
+    tag('서 →', [W - 50, y0 + 46], { size: 18, bg: '#ff8a3d', fg: '#fff' });
+    tag('같은 시각(해가 진 직후)에 보면 달은 날마다 약 13°씩 서 → 동으로 옮겨 가며 차올라요 (달의 공전)', [W / 2, H - 22], { size: 16, bg: '#ffcf5a', fg: '#2a1c00' });
+    skyMap(E(cur));
+  }
+  /* 해가 진 직후를 위에서 본 지도: 지구에서 해가 지는 곳(낮과 밤의 경계)에 선 관측자는 오른쪽(태양 쪽)이 서쪽, 왼쪽이 동쪽이에요.
+     그래서 공전 궤도에서 태양과 달 사이의 각이 곧 서쪽 지평선에서 달까지의 각이 돼요. */
+  let lastMap = null;
+  function mapSize() { return clamp(Math.min(W, H) * 0.34, 150, 230) * Math.min(FS, 1.6); }
+  function skyMap(e) {
+    const s = mapSize(), k = Math.min(FS, 1.6);
+    // 달 그림을 가리지 않는 위쪽 구석(오른쪽 → 왼쪽)을 골라요
+    const boxes = [[W - s - 12, 12], [12, 52]];
+    const hits = ([x, y]) => skyHits.filter(([hx, hy, hr]) => hx + hr > x && hx - hr < x + s && hy + hr > y && hy - hr < y + s).length;
+    const [x, y] = boxes.reduce((a, b) => hits(b) < hits(a) ? b : a); lastMap = [x, y, s];
+    ctx.fillStyle = 'rgba(4,6,14,.9)'; rr(x, y, s, s, 14); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.2)'; ctx.lineWidth = 1; rr(x, y, s, s, 14); ctx.stroke();
+    tag('⬇️ 위에서 본 모습 (해 진 직후)', [x + s / 2, y + 16 * k], { fixed: true, size: k * clamp(s / 15, 11, 14), bg: 'transparent', fg: '#cfe0ff' });
+    const c = [x + s * 0.47, y + s * 0.56], R = s * 0.32, re = s * 0.085, a = e * D2R;
+    // 햇빛
+    [-0.3, 0, 0.3].forEach(k => arrowLine([x + s - 6, c[1] + k * s], [x + s - 22, c[1] + k * s], '#ffcf5a', 2, 6));
+    // 궤도와 지구 (오른쪽 낮, 왼쪽 밤)
+    ctx.strokeStyle = 'rgba(159,196,255,.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(c[0], c[1], R, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#16244a'; ctx.beginPath(); ctx.arc(c[0], c[1], re, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3f86d6'; ctx.beginPath(); ctx.arc(c[0], c[1], re, -Math.PI / 2, Math.PI / 2); ctx.fill();
+    // 관측자: 낮과 밤의 경계(위쪽)에 서서 해가 지는 것을 봐요. 지평선 오른쪽 서, 왼쪽 동
+    const o = [c[0], c[1] - re], hl = s * 0.27;
+    ctx.strokeStyle = '#ff8a3d'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(o[0] - hl, o[1]); ctx.lineTo(o[0] + hl, o[1]); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(o[0], o[1] - 6, 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(o[0], o[1] - 3); ctx.lineTo(o[0], o[1]); ctx.stroke();
+    tag('동', [o[0] - hl - 9 * k, o[1]], { fixed: true, size: k * 11, bg: '#ff8a3d', fg: '#fff' });
+    tag('서', [o[0] + hl + 9 * k, o[1]], { fixed: true, size: k * 11, bg: '#ff8a3d', fg: '#fff' });
+    // 달: 태양 쪽에서 공전한 각 e만큼 (오른쪽 반이 밝아요), 관측자 → 달 선
+    const mp = [c[0] + R * Math.cos(a), c[1] - R * Math.sin(a)];
+    ctx.strokeStyle = '#ff5fa2'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(mp[0], mp[1]); ctx.stroke();
+    ctx.fillStyle = '#2b3150'; ctx.beginPath(); ctx.arc(mp[0], mp[1], 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffd84a'; ctx.beginPath(); ctx.arc(mp[0], mp[1], 7, -Math.PI / 2, Math.PI / 2); ctx.fill();
+    tag(`태양 – 지구 – 달: 약 ${Math.round(e / 5) * 5}°`, [x + s / 2, y + s - 14 * k], { fixed: true, size: k * clamp(s / 16, 11, 13), bg: '#ff5fa2', fg: '#fff' });
+  }
+
+  /* 하루 동안 뜨고 지는 달: 남쪽을 보고 선 하늘(왼쪽 동, 오른쪽 서). 해와 달 모두 1시간에 15°씩 동 → 서 (지구의 자전).
+     해는 6시에 뜨고 18시에 진다고 단순하게 했어요. 달은 해보다 (공전한 각 ÷ 15)시간 늦게 떠요. */
+  // 10분 단위로 반올림해서 보여 줘요 (정각이면 '분'은 빼요)
+  const clock = h => {
+    const t = Math.round(h * 6) * 10, k = ((Math.floor(t / 60) % 24) + 24) % 24, mm = ((t % 60) + 60) % 60;
+    const hs = k === 0 ? '밤 12시' : k === 12 ? '낮 12시' : k < 12 ? `오전 ${k}시` : `오후 ${k - 12}시`;
+    if (mm) return `${hs} ${mm}분`;
+    return k === 0 ? '자정 (밤 12시)' : k === 12 ? '정오 (낮 12시)' : hs;
+  };
+  function drawDay() {
+    const y0 = H * 0.78, cx = W / 2, Rx = W * 0.42, Ry = y0 * 0.8;
+    const wrap = d => ((d + 180) % 360 + 360) % 360 - 180;
+    const sunH = wrap((S.hr - 12) * 15), moonH = wrap(sunH - S.dph);
+    const day = clamp((Math.cos(sunH * D2R) + 0.2) / 0.5, 0, 1);
+    const mix = (a, b) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * day)).join(',')})`;
+    const sky = ctx.createLinearGradient(0, 0, 0, y0); sky.addColorStop(0, mix([8, 18, 51], [58, 128, 212])); sky.addColorStop(1, mix([40, 50, 100], [150, 200, 240]));
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, y0);
+    ctx.globalAlpha = 1 - day; ctx.fillStyle = 'rgba(255,255,255,.7)'; STARS.forEach(([sx, sy, sr]) => { ctx.beginPath(); ctx.arc(sx * W, sy * y0, sr, 0, Math.PI * 2); ctx.fill(); }); ctx.globalAlpha = 1;
+    const at = h => [cx + Rx * Math.sin(h * D2R), y0 - Ry * Math.cos(h * D2R)];
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 3; ctx.setLineDash([8, 7]); ctx.beginPath();
+    for (let h = -90; h <= 90; h += 3) { const q = at(h); if (h > -90) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); }
+    ctx.stroke(); ctx.setLineDash([]);
+    [-50, 0, 50].forEach(h => { const p = at(h), q = at(h + 3); head(p, q[0] - p[0], q[1] - p[1], 16, '#7cc4ff'); });
+    const r = clamp(H * 0.065, 18, 46);
+    // 낮 하늘에서도 달이 눈에 잘 띄게: 둘레에 은은한 빛, 어두운 쪽은 짙게 칠하고 하얀 테두리를 굵게 그려요
+    const bright = (p, th) => {
+      const g = ctx.createRadialGradient(p[0], p[1], r * 0.8, p[0], p[1], r * 1.9);
+      g.addColorStop(0, 'rgba(255,240,170,.55)'); g.addColorStop(1, 'rgba(255,240,170,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p[0], p[1], r * 1.9, 0, Math.PI * 2); ctx.fill();
+      phaseDisk(p[0], p[1], r, th, 0, '#2f3a66');
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p[0], p[1], r + 1.5, 0, Math.PI * 2); ctx.stroke();
+    };
+    // 지나온 달의 자리 (1시간마다 점, 3시간마다 시각)
+    for (let k = Math.ceil(S.hr0); k <= S.hr - 0.6; k++) {
+      const h = wrap((k - 12) * 15 - S.dph); if (Math.abs(h) > 90) continue;
+      const p = at(h); ctx.fillStyle = 'rgba(255,240,200,.55)'; ctx.beginPath(); ctx.arc(p[0], p[1], 5, 0, Math.PI * 2); ctx.fill();
+      if (k % 3 === 0) tag(clock(k).replace(/ \(.*\)/, ''), [p[0], p[1] + 18], { size: 12, bg: 'rgba(8,14,40,.7)', fg: '#cfe0ff' });
+    }
+    if (Math.abs(sunH) <= 95) drawSunDisk(at(sunH), 18);
+    // 다음 날 같은 시각: 어제 이 시각의 달을 흐리게 남기고, 안쪽에 어제 → 오늘(서 → 동) 화살표를 그려요
+    // 하늘 안쪽(지평선 가운데) 방향: 비교할 때는 화살표와 오늘 달 이름표를 안쪽에, 어제 이름표를 바깥쪽에 붙여요
+    const inward = q => { const dx = cx - q[0], dy = y0 - q[1], l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; };
+    const off = (q, n, d) => [q[0] + n[0] * d, q[1] + n[1] * d];
+    const prevH = S.dprev == null ? null : wrap(sunH - S.dprev), cmp = prevH != null && Math.abs(prevH) <= 92;
+    if (cmp) {
+      const p = at(prevH), n = inward(p); ctx.globalAlpha = 0.45; phaseDisk(p[0], p[1], r, S.dprev, 0, 'rgba(60,70,120,.35)'); ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(p[0], p[1], r + 3, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+      tag('어제 이 시각', off(p, n, -(r + 18 * FS)), { size: 13, bg: 'rgba(8,14,40,.8)', fg: '#cfe0ff' });
+      if (Math.abs(moonH) <= 92) {
+        const q = at(moonH), a = off(p, n, r + 14), b = off(q, inward(q), r + 14);
+        arrowLine(a, b, '#ff8a3d', 4, 13);
+      }
+    }
+    if (Math.abs(moonH) <= 92) {
+      const p = at(moonH); bright(p, S.dph);
+      tag(cmp ? '오늘 · ' + phName(S.dph) : phName(S.dph), cmp ? off(p, inward(p), r + 56 * FS) : [p[0], p[1] - r - 16 * FS < 70 * FS ? p[1] + r + 22 * FS : p[1] - r - 16 * FS], { size: 15, bg: '#ffcf5a', fg: '#2a1c00' });
+    } else tag('🌙 달이 지평선 아래에 있어서 지금은 안 보여요', [W / 2, H * 0.35], { size: 17, bg: 'rgba(8,14,40,.85)' });
+    ctx.fillStyle = '#141a2e'; ctx.fillRect(0, y0, W, H - y0);
+    tag('남', [cx, y0 + 24], { size: 24, bg: '#ff8a3d', fg: '#fff' });
+    tag('← 동 (뜨는 곳)', [80, y0 + 24], { size: 17, bg: '#ff8a3d', fg: '#fff' });
+    tag('서 (지는 곳) →', [W - 80, y0 + 24], { size: 17, bg: '#ff8a3d', fg: '#fff' });
+    tag(`🕐 ${clock(S.hr)}`, [W - 130, 30], { size: 22, bg: 'rgba(8,14,40,.88)', fg: '#ffd34d' });
+    // 저녁 하늘에서 고른 달: 지금 어느 단계에서 멈췄는지 알려 줘요
+    if (S.stops && !S.playing) {
+      const msg = { rise: '🌅 달이 동쪽에서 떠요', 'rise+sun': '🌅 해가 진 직후: 달이 동쪽에서 떠요 (저녁 하늘에서 본 자리)', sun: '🌇 해가 진 직후: 저녁 하늘에서 본 바로 그 자리예요', top: '⬆️ 남중: 남쪽 하늘에서 가장 높아요', 'top+sun': '⬆️ 해가 진 직후 남중: 저녁 하늘에서 본 자리, 남쪽 하늘에서 가장 높아요', set: '🌄 달이 서쪽으로 져요' }[S.stopKinds[S.stopIdx - 1]] || '';
+      if (msg) tag(msg, [W / 2, 30], { size: 20, bg: '#ffcf5a', fg: '#2a1c00' });
+    }
+    if (S.dprev != null) tag('📅 하루 뒤 같은 시각: 달은 어제보다 동쪽으로 약 13° 옮겨 가요 (달의 공전)', [W / 2, H - 22], { size: 16, bg: '#ff8a3d', fg: '#fff' });
+    else tag('하루 동안: 달도 해처럼 동쪽에서 떠서 서쪽으로 져요 (지구의 자전, 1시간에 15°)', [W / 2, H - 22], { size: 16, bg: '#7cc4ff', fg: '#06142b' });
+  }
+
+  let hudTxt = '';
+  function hud() {
+    let s;
+    if (S.view === 'orbit') {
+      if (S.hudAns) s = `🌙 음력 약 ${lunarDay(S.th)}일 · ${phName(S.th)}`;
+      else { const p = POS.find(([, a]) => Math.abs(((norm(S.th) - a + 540) % 360) - 180) < 2); s = p && S.marks ? `🌙 달의 위치: ${p[0]}` : '🌙 달이 지구 주위를 공전해요'; }
+      if (S.cam === 'earth') s += ' · 👀 지구에서 보는 중';
+    } else if (S.view === 'day') s = `🕐 하루 동안 · ${phName(S.dph)}`;
+    else s = `🌇 해가 진 직후 · 음력 ${Math.floor(S.sd)}일`;
+    if (s !== hudTxt) hudEl.textContent = hudTxt = s;
+  }
+
+  let last = 0;
+  function loop(now) {
+    requestAnimationFrame(loop);
+    const dt = last ? Math.min(0.1, (now - last) / 1000) : 0; last = now;
+    if (!el.isConnected || !W) return;
+    if (S.view === 'orbit') {
+      const t1 = S.th;
+      if (S.goal != null) { S.th = Math.min(S.goal, S.th + S.rate * dt); if (S.th >= S.goal - 1e-9) { S.th = S.goal; S.goal = null; if (hooks.change) setTimeout(() => hooks.change('goal')); } }
+      else if (S.playing) S.th += SPEEDS[S.speed] * dt;
+      const adv = S.th - t1;
+      if (adv > 0) { const key = 'orbit-' + S.cam, was = watch[key] || 0; watch[key] = was + adv; if (was < 180 && watch[key] >= 180 && hooks.watch) setTimeout(() => hooks.watch(key)); }
+      const m = ring(RM, S.th);
+      moonMesh.position.copy(m); moonMesh.lookAt(0, 0, 0); // 달은 늘 같은 면을 지구로 향해요
+      moonToon.position.copy(m); moonMesh.visible = !S.toon; moonToon.visible = S.toon;
+      ghostG.visible = S.all8 && S.cam !== 'earth';
+      ghostReal.forEach(g => { g.visible = !S.toon; }); ghostToon.forEach(g => { g.visible = S.toon; });
+      if (S.cam !== 'earth') { faceView(moonToon); ghostToon.forEach(faceView); } else moonToon.quaternion.identity();
+      if (S.cam === 'earth') { camera.position.copy(m.clone().normalize().multiplyScalar(RE + 0.15)); camera.up.set(0, 1, 0); camera.lookAt(m); }
+      else {
+        if (S.focus) { const d = m.clone().sub(controls.target); controls.target.add(d); camera.position.add(d); }
+        controls.update();
+      }
+    } else if (S.view === 'day') {
+      if (S.playing && S.stops) {
+        S.hr += DAYSPEEDS[S.dspd] * dt;
+        const t = S.stops[S.stopIdx];
+        if (t == null || S.hr >= t) { S.hr = t == null ? S.stops[S.stops.length - 1] : t; S.stopIdx++; S.playing = false; if (hooks.change) setTimeout(() => hooks.change(S.stopIdx >= S.stops.length ? 'day' : 'stop')); }
+      } else if (S.playing) { S.hr += DAYSPEEDS[S.dspd] * dt; if (S.hr >= S.hr0 + 24) { S.hr = S.hr0 + 24; S.playing = false; if (hooks.change) setTimeout(() => hooks.change('day')); } }
+    } else if (S.playing) { S.sd += 1.9 * dt; if (S.sd >= 15) { S.sd = 15; S.playing = false; if (hooks.change) setTimeout(() => hooks.change('sky')); } }
+    renderer.setClearColor(0x050914);
+    renderer.render(scene, camera);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
+    FS = hooks.big && hooks.big() ? clamp(W / 1000, 1.4, 1.8) : 1;
+    el.classList.toggle('big', FS > 1);
+    camera.updateMatrixWorld();
+    M.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    if (S.view === 'orbit') { if (S.cam === 'earth') drawEarthView(); else drawOrbit(); } else if (S.view === 'day') drawDay(); else drawSky();
+    hud();
+  }
+  applyView(); preset();
+  requestAnimationFrame(loop);
+  return { ok: true, el, S, watch, hooks, set, play, step, preset, playSky, playDay, setPhase, stepHour, nextDay, DAY13 };
+})();
+
+/* ───────── 수업 모드 ───────── */
+// 27일 vs 29.5일: 달이 한 바퀴(360°) 도는 동안 지구도 공전해서, 다시 보름달이 되려면 약 2일 더 돌아야 해요 (지구 공전은 크게 과장)
+const FIG295 = (() => {
+  const half = (x, y) => `<circle cx="${x}" cy="${y}" r="11" fill="#2b3150" stroke="#cfd8f5" stroke-width="1.5"/><path d="M${x} ${y - 11}A11 11 0 0 1 ${x} ${y + 11}Z" fill="#ffd84a"/>`;
+  const earth = (x, y) => `<circle cx="${x}" cy="${y}" r="15" fill="#3d8bfd"/>`;
+  const t = (x, y, s, o) => `<text x="${x}" y="${y}" font-size="${(o && o.size) || 21}" fill="${(o && o.fg) || '#e8eeff'}" text-anchor="${(o && o.a) || 'end'}" font-weight="700">${s}</text>`;
+  const line = (x1, y1, x2, y2, c, w, dash) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
+  const ring = (x, y) => `<circle cx="${x}" cy="${y}" r="50" fill="none" stroke="#9aa7d6" stroke-opacity=".55" stroke-width="1.5" stroke-dasharray="4 5"/>`;
+  return `<svg viewBox="0 0 900 340" style="display:block;width:100%;max-width:900px;margin:12px auto 4px" role="img" aria-label="27일 뒤에는 아직 보름달이 아니고 며칠 더 돌아야 다시 보름달이 되는 그림">
+<defs><marker id="f295a" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" orient="auto"><path d="M0 0L10 5L0 10z" fill="#7cc4ff"/></marker></defs>
+${line(840, 160, 511, 40, 'rgba(255,216,74,.5)', 1.8, '5 5')}${line(840, 160, 511, 280, 'rgba(255,216,74,.5)', 1.8, '5 5')}
+<path d="M558 57A300 300 0 0 0 558 263" fill="none" stroke="#7cc4ff" stroke-width="3" stroke-dasharray="8 7" marker-end="url(#f295a)"/>
+${ring(558, 57)}${ring(558, 263)}
+${line(558, 57, 511, 40, '#fff', 2)}${line(558, 263, 511, 246, '#fff', 2)}
+<path d="M511 246A50 50 0 0 0 511 280" fill="none" stroke="#ff8a3d" stroke-width="6"/>${line(558, 263, 511, 280, '#ff8a3d', 2)}
+<circle cx="840" cy="160" r="30" fill="#ffb02e"/>${t(840, 220, '태양', { a: 'middle' })}
+${earth(558, 57)}${earth(558, 263)}${t(582, 40, '지구', { a: 'start', size: 18 })}${t(582, 300, '지구', { a: 'start', size: 18 })}
+${half(511, 40)}${half(511, 246)}${half(511, 280)}<circle cx="511" cy="280" r="15" fill="none" stroke="#ff8a3d" stroke-width="3"/>${t(490, 47, '보름달', { fg: '#ffd84a' })}
+${t(488, 226, '① 27일 뒤: 한 바퀴(360°)')}${t(488, 252, '돌았지만 아직 보름달이 아니에요')}
+${t(488, 298, '② 며칠 더 돌아야', { fg: '#ff9d5c' })}${t(488, 324, '다시 보름달 → 약 29.5일', { fg: '#ff9d5c' })}
+${t(575, 166, '지구도 태양 둘레를 돌아요', { a: 'start', size: 18, fg: '#9fd3ff' })}
+</svg>`;
+})();
+const TABS = [
+  { name: '① 달의 공전', title: '🌙 달의 공전', setup: { view: 'orbit', cam: 'top', th: 40, lit: true },
+    lines: ['달이 [지구]를 중심으로 약 [한 달]에 한 바퀴씩 도는 운동', '공전 방향: [서] → [동] (북극 위에서 보면 [시계 반대] 방향)', '공전 속도: 하루에 약 [13]°씩 이동', '<b>왜 13°일까?</b> 달이 지구 둘레를 한 바퀴([360]°) 도는 데 약 [27]일이 걸려요. → 360° ÷ 27일 ≒ 하루에 약 13°', '<b>27일인데 왜 한 달(29.5일)일까?</b> 달이 한 바퀴 도는 동안 지구도 태양 둘레를 조금 돌아요. 그래서 달이 다시 같은 모양이 되려면 약 [2]일을 더 돌아야 해요. → 모양이 다시 같아지는 주기는 약 29.5일' + FIG295,'달은 스스로 빛을 내지 못하고 햇빛을 [반사]하여 밝게 보여요.', '그래서 달은 어디에 있든 언제나 [태양]을 바라보는 쪽 절반만 밝아요.', '달의 공전으로 나타나는 현상: [달의 위상 변화], 일식과 월식'],
+    ask: '<b>관찰해요</b> ▶ 재생하거나 +1일을 눌러 보세요. 달이 어디로 가든 노랗게 칠한 밝은 쪽은 늘 ☀ 햇빛이 오는 오른쪽을 향해요!<br><b>그런데</b> 오른쪽 위 "지구에서 본 모양"은 왜 바뀔까요? → ② 탭에서 알아봐요.' },
+  { name: '② 위상이 변하는 까닭', title: '🌗 달의 위상이 변하는 까닭', setup: { view: 'orbit', cam: 'top', th: 90, half: true },
+    lines: ['달의 [위상]: 지구에서 볼 때 밝게 보이는 달의 모양', '달은 언제나 [햇빛]을 받는 쪽 절반이 밝아요. (노랗게 칠한 반쪽)', '지구에서는 달의 [지구] 쪽 절반만 보여요. (분홍 반원)', '두 반쪽이 [겹치는] 부분이 지구에서 보이는 달의 모양이에요.', '달의 위상이 변하는 까닭: 달이 지구를 중심으로 [공전]하면서 태양, 지구, 달의 [상대적인 위치]가 달라지기 때문', '위상이 변하는 주기: 약 [한 달] (달이 약 한 달을 주기로 공전하기 때문)'],
+    ask: '<b>확대해 봐요</b> 🎯 달 확대해서 따라가기를 누르면 화면 중심이 달로 옮겨지고 크게 보여요. (화면을 끌면 돌려 볼 수 있고, 손가락 두 개로 벌리면 더 확대돼요) 확대해도 노란 ☀ 화살표가 햇빛 방향을, 파란 점선과 🌍가 지구 쪽을 알려 주고, 왼쪽 아래 지도에 위에서 본 위치가 나와요.<br><b>찾아봐요</b> 달 위치 버튼을 바꿔 가며 노란 반쪽(빛 받는 쪽)과 분홍 반원(지구에서 보이는 쪽)이 겹친 부분을 찾아보세요. 오른쪽 위 "지구에서 본 모양"과 같은가요?<br><b>스마트 기기로 찍어 봐요</b> 👀 지구에서 보기를 누르면 교과서 탐구처럼 지구에서 달 모형을 찍은 모습이 보여요.' },
+  { name: '③ 위상 변화 순서', title: '🌓 달의 위상 변화 순서', setup: { view: 'orbit', cam: 'top', th: 0, all8: true, playing: true, speed: 0 },
+    lines: ['[삭] (음력 1일경): 태양 – [달] – 지구 순으로 놓여 달이 보이지 않아요. (달이 태양과 같은 방향)', '초승달 (음력 2~3일경): [오른쪽] 일부분이 밝아요.', '[상현달] (음력 7~8일경): 달이 태양과 [수직] 방향을 이루고 [오른쪽] 반원이 밝아요.', '[망] (보름달, 음력 15일경): 태양 – [지구] – 달 순으로 놓여 둥근 달 전체가 밝아요. (달이 태양의 [반대] 방향)', '[하현달] (음력 22~23일경): 달이 태양과 수직 방향을 이루고 [왼쪽] 반원이 밝아요.', '그믐달 (음력 27~28일경): [왼쪽] 일부분이 밝아요.', '순서: 삭 → 초승달 → [상현달] → 보름달(망) → [하현달] → 그믐달 → 삭 ("삭초상망하그")'],
+    ask: '<b>생각해요</b> 추석(음력 8월 15일)과 정월 대보름(음력 1월 15일)에는 어떤 모양의 달을 볼 수 있을까요?<br><b>도전!</b> 위상 변화 주기는 약 29.5일이에요. 1년 동안 보름달은 최대 몇 번 볼 수 있을까요?' },
+  { name: '④ 저녁 하늘의 달', title: '🌇 해가 진 직후 달의 위치와 모양', setup: { view: 'sky', sd: 2, playing: true },
+    lines: ['달이 공전하므로 같은 시각에 관측한 달의 [위치]와 [모양]이 날마다 변해요.', '해가 진 직후, 음력 2일경: [서]쪽 하늘에서 [초승달]', '음력 7~8일경: [남]쪽 하늘에서 [상현달]', '음력 15일경: [동]쪽 하늘에서 [보름달]', '같은 시각에 보이는 달의 위치는 매일 약 [13]°씩 [동]쪽으로 이동해요.', '가장 오래 관측할 수 있는 달은 [보름달]이에요.', '음력 15일경 보름달일 때 달은 태양의 [반대] 방향에 있어요. → 보름달이 동쪽 하늘에 보이면 태양은 [서]쪽 하늘에 있어요.'],
+    ask: '<b>눌러 봐요</b> 하늘의 달을 누르면 그 달이 하루 동안 뜨고 지는 모습으로 바뀌어요. 뜰 때 → 남중할 때 → 지기 직전에 한 번씩 멈춰요.<br><b>1차시와 연결</b> 하늘은 1시간에 15°씩 동 → 서로 돌아요. 그래서 태양과 달 사이의 각 ÷ 15° ≒ 해가 진 뒤 달을 볼 수 있는 시간이에요. 상현달(90°)은 약 6시간, 보름달(180°)은 약 12시간!<br><b>생각해요</b> 보름달이 동쪽 하늘에 보일 때 태양은 어느 쪽에 있을까요?<br><b>주의!</b> 여기서 달이 서 → 동으로 옮겨 가는 것은 "날마다 같은 시각"에 본 것이에요. 하루 동안에는 ⑤ 탭처럼 동 → 서로 움직여요.' },
+  { name: '⑤ 하루 동안 뜨고 지는 달', title: '🕐 하루 동안 달이 뜨고 지는 모습', setup: { view: 'day', dph: 180 },
+    lines: ['하루 동안 달은 해처럼 [동]쪽에서 떠서 [서]쪽으로 져요. (1시간에 [15]°, 지구의 [자전] 때문 — 일주 운동)', '날마다 같은 시각에 보면 달은 [서]쪽에서 [동]쪽으로 약 13°씩 옮겨 가요. (달의 [공전] 때문)'],
+    ask: '<b>순서대로 해 봐요</b> ① ▶ 재생(🐢 느리게)으로 하루 동안 달이 동 → 서로 가는 것을 봐요. ② 달이 하늘 높이 떠 있을 때 멈추고 📅 다음 날 같은 시각을 여러 번 눌러요. (시계는 그대로, 하루가 지나요) 흐린 "어제 이 시각" 달보다 오늘 달이 동쪽(왼쪽)에 있어요.<br><b>방향 비교</b> ④ 탭(날마다 같은 시각)과 이 탭(하루 동안)을 번갈아 재생해 보세요.<br>· 하루 동안: <b>동 → 서</b>, 1시간에 15° (지구의 <b>자전</b>) — 해·별과 똑같아요.<br>· 날마다 같은 시각: <b>서 → 동</b>, 하루에 약 13° (달의 <b>공전</b>) — 2차시 태양의 연주 운동과 같은 방향이에요.' }
+];
+
+/* ───────── 탐사 모드 문제 (모든 학생이 같은 문제) ───────── */
+const M1Q = [
+  { s: '달은 ___를 중심으로 공전해요.', o: ['지구', '태양', '북극성'], a: 0, h: '모형의 가운데에 무엇이 있나요?' },
+  { s: '달의 공전 방향은 ___이에요.', o: ['서 → 동', '동 → 서'], a: 0, h: '⬇️ 위에서 보기에서 달은 시계 반대 방향으로 돌아요. 지구의 자전·공전 방향과 같아요.' },
+  { s: '달은 약 ___에 한 바퀴씩 공전해요.', o: ['하루', '한 달', '1년'], a: 1, h: '달의 모양이 다시 처음과 같아지는 데 걸리는 시간을 떠올려 보세요.' },
+  { s: '달은 하루에 약 ___씩 공전해요.', o: ['1°', '13°', '15°'], a: 1, h: '한 바퀴 360°를 도는 데 약 27일 걸려요. 360 ÷ 27을 어림해 보세요.', ex: '360° ÷ 약 27일 ≒ 13°. 그래서 하루에 약 13°씩 움직여요. (모양이 다시 같아지는 데 29.5일이 걸리는 것은 그동안 지구도 태양 둘레를 돌아서 약 2일을 더 돌아야 하기 때문이에요) (1°는 지구가 하루에 공전하는 각, 15°는 하늘이 1시간 동안 도는 각이에요)' },
+  { s: '달이 밝게 보이는 까닭은 ___ 때문이에요.', o: ['스스로 빛을 내기', '햇빛을 반사하기'], a: 1, h: '달의 어두운 쪽은 어느 쪽인지 보세요.' },
+  { s: '모형에서 달의 밝은 반쪽은 언제나 ___ 쪽을 향해요.', o: ['태양', '지구'], a: 0, h: '⬇️ 위에서 보며 재생해 보세요. 햇빛 화살표가 오는 쪽을 보세요.' },
+  { s: '지구에서 볼 때 밝게 보이는 달의 모양을 달의 ___이라고 해요.', o: ['위상', '공전', '일주 운동'], a: 0, h: '모양 상(相)이 들어가는 말이에요.' }
+];
+const M2Q = [
+  { s: '태양 – 달 – 지구 순으로 일직선에 놓일 때(㉵) 달의 위상은 ___이에요.', o: ['삭', '망', '상현달'], a: 0, ex: '달의 밝은 쪽이 지구 반대쪽을 향해서 지구에서는 달이 보이지 않아요.' },
+  { s: '태양 – 지구 – 달 순으로 일직선에 놓일 때(㉱) 달의 위상은 ___이에요.', o: ['삭', '망 (보름달)', '하현달'], a: 1, ex: '달의 밝은 쪽 전체가 지구를 향해서 둥근 보름달로 보여요.' },
+  { s: '달이 태양과 수직 방향(㉯)에 있고 오른쪽 반원이 밝을 때를 ___이라고 해요.', o: ['상현달', '하현달'], a: 0 },
+  { s: '㉳ 위치에서 보이는 달은 ___이에요.', o: ['상현달', '하현달', '그믐달'], a: 1, h: '㉳에서 기록한 모양은 어느 쪽 반원이 밝았나요?', ex: '달이 태양과 수직 방향이고 왼쪽 반원이 밝아요.' },
+  { s: '달의 위상이 변하는 까닭은 달이 ___ 때문이에요.', o: ['지구 주위를 공전하면서 태양, 지구, 달의 상대적인 위치가 달라지기', '스스로 커졌다 작아졌다 하기', '지구 그림자에 가려지기'], a: 0, h: '탐구에서 공(달)의 절반은 늘 노란색이었어요. 무엇이 바뀌었나요?', ex: '달은 늘 절반이 밝아요. 지구에서 보이는 밝은 부분이 달라질 뿐이에요. (지구 그림자에 가려지는 것은 월식이에요)' },
+  { s: '달의 모양이 다시 처음과 같아지는 데 걸리는 시간(위상 변화 주기)은 약 ___이에요.', o: ['일주일', '한 달', '1년'], a: 1, ex: '달이 약 한 달을 주기로 공전하기 때문이에요.' }
+];
+const M3P = { s: '음력 2일, 해가 진 직후 서쪽 하늘에 가느다란 초승달이 보였어요. 음력 15일 같은 시각에는 달이 어디에서 어떤 모양으로 보일까요?', o: ['서쪽 하늘, 초승달', '남쪽 하늘, 반달', '동쪽 하늘, 보름달'], a: 2,
+  ex: '달이 날마다 약 13°씩 동쪽으로 옮겨 가서, 음력 7~8일에는 남쪽 하늘에 상현달, 음력 15일에는 동쪽 하늘에 보름달이 보여요.' };
+const M3Q = [
+  { s: '음력 7~8일경 해가 진 직후 상현달은 ___ 하늘에서 보여요.', o: ['서쪽', '남쪽', '동쪽'], a: 1 },
+  { s: '같은 시각에 보이는 달의 위치는 매일 약 13°씩 ___으로 옮겨 가요.', o: ['동쪽', '서쪽'], a: 0, h: '음력 2일 → 7~8일 → 15일, 서쪽 → 남쪽 → 동쪽 하늘이었어요.' },
+  { s: '음력 15일경 보름달이 동쪽 하늘에 보일 때 태양은 ___ 하늘에 있어요.', o: ['서쪽', '동쪽', '남쪽'], a: 0, h: '망일 때 달은 태양의 반대 방향에 있어요.', ex: '음력 15일경 보름달일 때 달은 태양의 반대 방향에 있어요. 그래서 보름달이 동쪽 하늘에 보이면 태양은 서쪽 하늘에 있어요.' },
+  { s: '가장 오래 관측할 수 있는 달은 ___이에요.', o: ['초승달', '상현달', '보름달'], a: 2, h: '태양 – 지구 – 달이 이루는 각이 클수록 오래 볼 수 있어요.', ex: '태양 – 지구 – 달이 이루는 각 ÷ 15° = 관측 가능 시간이에요. 보름달은 180° ÷ 15° = 약 12시간 볼 수 있어요.' },
+  { s: '삭 다음에 나타나는 위상의 순서로 옳은 것은 ___이에요.', o: ['초승달 → 상현달 → 보름달 → 하현달 → 그믐달', '초승달 → 하현달 → 보름달 → 상현달 → 그믐달', '그믐달 → 하현달 → 보름달 → 상현달 → 초승달'], a: 0, h: '"삭초상망하그"' },
+  { s: '추석(음력 8월 15일)에 볼 수 있는 달은 ___이에요.', o: ['초승달', '상현달', '보름달', '하현달'], a: 2, ex: '음력 15일경은 망이에요. 추석과 정월 대보름에는 보름달을 볼 수 있어요.' },
+  { s: '하현달은 음력 ___경에 볼 수 있어요.', o: ['2~3일', '7~8일', '15일', '22~23일'], a: 3 },
+  { s: '하루 동안 달은 ___으로 움직여요.', o: ['동쪽에서 떠서 서쪽으로', '서쪽에서 떠서 동쪽으로'], a: 0, h: '🕐 하루 동안을 재생해 보세요. 해와 같은 방향이에요.', ex: '하루 동안의 움직임은 지구의 자전 때문(동 → 서)이고, 날마다 같은 시각에 서 → 동으로 옮겨 가는 것은 달의 공전 때문이에요.' },
+  { s: '위상 변화 주기는 약 29.5일이에요. 1년 동안 보름달은 최대 ___까지 볼 수 있어요.', o: ['12번', '13번', '24번'], a: 1, h: '365일 동안 29.5일이 몇 번 들어가는지 어림해 보세요.', ex: '365 ÷ 29.5 ≒ 12.4라서 보통 12번, 많으면 13번 볼 수 있어요.' }
+];
+const QUIZ = [
+  { fig: 'ph3', s: '그림 (가)~(다)는 우리나라에서 일정한 간격으로 관측한 달의 모습이에요. 삭 이후 관측한 순서로 옳은 것은?', o: ['(가) → (나) → (다)', '(다) → (나) → (가)', '(나) → (가) → (다)'], a: 0, h: '오른쪽부터 차오르고, 보름달 뒤에는 오른쪽부터 작아져요.', ex: '(가) 상현달(7~8일) → (나) 보름달(15일) → (다) 하현달(22~23일). 약 7일 간격이에요.' },
+  { s: '위 그림의 (나)를 볼 때 태양, 지구, 달의 배열은?', o: ['태양 – 달 – 지구', '태양 – 지구 – 달', '태양과 달이 지구를 중심으로 수직'], a: 1, ex: '(나)는 망이에요. 달이 태양의 반대 방향에 있어요.' },
+  { s: '위 그림의 (가)와 (다)에 대한 설명으로 옳은 것은?', o: ['지구를 중심으로 태양과 달이 수직을 이룰 때 보인다.', '달이 태양과 같은 방향에 있을 때 보인다.', '둘 다 음력 15일경에 보인다.'], a: 0, ex: '(가) 상현달과 (다) 하현달은 달이 태양과 수직 방향에 있을 때 보여요.' },
+  { s: '위 그림의 (가)~(다)는 약 며칠 간격으로 관측한 것일까요?', o: ['약 7일', '약 15일', '약 30일'], a: 0, h: '상현달, 보름달, 하현달은 각각 음력 며칠경에 보이나요?', ex: '(가) 음력 7~8일 → (나) 15일 → (다) 22~23일, 약 7일 간격이에요.' },
+  { s: '위 그림의 (나)와 (다) 사이의 시기에 볼 수 있는 달은?', o: ['초승달', '왼쪽이 더 많이 밝은 볼록한 달', '그믐달'], a: 1, h: '(나) 보름달 다음, (다) 하현달 전이에요. 순서 "삭초상망하그"를 떠올려 보세요.', ex: '보름달과 하현달 사이에는 왼쪽이 더 많이 밝은 볼록한 달이 보여요. 초승달은 삭과 상현달 사이에 보여요.' },
+  { fig: 'orb8', s: '그림은 지구 주위를 공전하는 달의 위치를 나타낸 것이에요. 음력 2~3일경 달의 위치는?', o: ['A', 'B', 'D', 'G'], a: 0, h: 'H가 태양 쪽이에요. 삭 다음 위치를 찾아보세요.', ex: 'H(삭) 다음 A에서 초승달이 보여요.' },
+  { s: '위 그림에서 추석(음력 8월 15일)의 달의 위치는?', o: ['B', 'D', 'F', 'H'], a: 1, ex: '음력 15일경은 망이에요. 태양 반대쪽 D에 달이 있어요.' },
+  { s: '위 그림에서 달이 H에 있을 때에 대한 설명으로 옳은 것은?', o: ['달이 보이지 않는다. (삭)', '보름달로 보인다.', '오른쪽 반원이 밝게 보인다.'], a: 0, ex: '태양 – 달 – 지구 순이라 햇빛을 받는 부분이 지구에서 보이지 않아요.' },
+  { s: '위 그림에서 그믐달이 보일 때 달의 위치는?', o: ['A', 'C', 'E', 'G'], a: 3, ex: '하현(F)과 삭(H) 사이인 G에서 그믐달이 보여요.' },
+  { s: '위 그림에서 달이 F에 있을 때 보이는 달의 모양은?', o: ['오른쪽 반원', '왼쪽 반원', '둥근 달 전체'], a: 1, ex: 'F는 하현이에요. 왼쪽 반원이 밝게 보여요.' },
+  { fig: 'orbAB', s: '그림의 A에 달이 있을 때 관측되는 달의 위상은?', o: ['삭', '상현', '망', '하현'], a: 2, h: '햇빛이 오는 쪽(오른쪽)이 태양 쪽이에요. A는 태양의 어느 쪽에 있나요?', ex: 'A는 지구를 기준으로 태양의 반대쪽이라 망(보름달)이에요.' },
+  { s: '위 그림의 B에 달이 있을 때 관측되는 달의 위상은?', o: ['삭', '상현', '망', '하현'], a: 3, h: '공전 방향을 따라 망(A) 다음 90° 간 곳이에요.', ex: 'B는 망에서 90° 더 공전한 위치라 왼쪽 반원이 밝은 하현달이에요.' },
+  { fig: 'orbL', s: '햇빛이 왼쪽에서 오는 그림이에요. 원리는 같아요. 상현달이 보이는 달의 위치는?', o: ['1', '2', '3', '4'], a: 3, h: '먼저 삭(태양 쪽)을 찾고, 공전 방향을 따라 90° 간 곳을 찾아요.', ex: '2(태양 쪽)가 삭, 공전 방향으로 90° 간 4가 상현, 3이 망, 1이 하현이에요.' },
+  { s: '위 그림에서 보름달이 보이는 달의 위치는?', o: ['1', '2', '3', '4'], a: 2, ex: '태양 반대쪽인 3에서 망(보름달)이에요.' },
+  { s: '달이 태양에서 가장 멀리 있을 때 (지구를 기준으로 태양의 반대쪽) 보이는 달의 위상은?', o: ['삭', '상현달', '망(보름달)', '하현달'], a: 2, ex: '달 – 지구 – 태양 순으로 놓이는 망이에요. 둥근 보름달로 보여요.' },
+  { fig: 'ph9', s: '그림 (가)~(다)는 우리나라에서 관측한 달의 위상이에요. (가)의 이름은?', o: ['초승달', '그믐달', '하현달'], a: 1, h: '어느 쪽 일부분이 밝은가요?', ex: '왼쪽 일부분이 밝은 달은 그믐달(음력 27~28일경)이에요. 초승달은 오른쪽 일부분이 밝아요.' },
+  { s: '위 그림 (가)~(다) 중 달을 관측할 수 있는 시간이 가장 긴 것은?', o: ['(가)', '(나)', '(다)'], a: 2, h: '태양 – 지구 – 달이 이루는 각 ÷ 15° = 관측 가능 시간이에요.', ex: '(다) 보름달은 태양 – 지구 – 달이 이루는 각이 180°라서 약 12시간 볼 수 있어요.' },
+  { fig: 'sky3', s: '그림은 우리나라에서 서로 다른 날 해가 진 뒤 저녁에 본 달이에요. (나)가 관측된 날짜는?', o: ['음력 2~3일경', '음력 7~8일경', '음력 15일경'], a: 1, h: '(나)는 어떤 모양이고, 어느 쪽 하늘에 있나요?', ex: '해가 진 직후 남쪽 하늘에 보이는 오른쪽 반달은 상현달(음력 7~8일경)이에요.' },
+  { s: '위 그림의 (가)에 대한 설명으로 옳은 것은?', o: ['그믐달이다.', '초승달이다.', '음력 15일경에 보인다.'], a: 1, ex: '해가 진 직후 서쪽 하늘에 낮게 보이는, 오른쪽 일부분이 밝은 달은 초승달이에요.' },
+  { s: '위 그림의 (다)가 보일 때 태양은 어느 쪽에 있을까요?', o: ['동쪽', '남쪽', '서쪽'], a: 2, h: '보름달일 때 달은 태양의 어느 방향에 있나요?', ex: '보름달은 태양의 반대 방향에 있어요. 보름달이 동쪽 하늘에 보이면 태양은 서쪽에 있어요.' },
+  { s: '위 그림 (가)~(다)에 대한 설명으로 옳지 않은 것은?', o: ['(가)는 (나)보다 먼저(음력 날짜가 빠른 날) 관측되었다.', '(나)는 지구를 중심으로 태양과 달이 수직을 이룰 때 보인다.', '(나)는 달, 지구, 태양이 일직선으로 배열될 때 보인다.', '(다)는 (가)보다 오래 관측할 수 있다.'], a: 2, h: '(가)~(다)가 각각 어떤 달인지 먼저 모양으로 찾아보세요. 일직선 배열은 삭과 망일 때예요.', ex: '(가) 초승달 → (나) 상현달 → (다) 보름달 순서예요. (나) 상현달은 태양과 달이 지구를 중심으로 수직을 이룰 때 보여요. 일직선(달 – 지구 – 태양)으로 놓이는 것은 (다) 보름달이에요.' },
+  { s: '달의 위상이 변하는 까닭으로 옳은 것은?', o: ['달이 지구 주위를 공전하면서 태양, 지구, 달의 상대적인 위치가 달라지기 때문', '지구의 그림자가 달을 가리기 때문', '달이 스스로 내는 빛의 양이 달라지기 때문'], a: 0, ex: '달은 햇빛을 반사해서 늘 절반이 밝아요. 공전하면서 지구에서 보이는 밝은 부분이 달라져요.' }
+];
+
+/* ───────── 그림 ───────── */
+const svgText = (x, y, t, o) => `<text x="${x}" y="${y}" fill="${(o && o.c) || '#eef2ff'}" font-size="${(o && o.s) || 15}" font-family="Do Hyeon, Noto Sans KR, sans-serif" text-anchor="${(o && o.a) || 'middle'}">${t}</text>`;
+function figPhases(list) {
+  return `<svg class="fig" viewBox="0 0 420 160" role="img" aria-label="달의 모습 ${list.map(l => l[1]).join(', ')}"><rect width="420" height="160" fill="#0d1838"/>
+${list.map(([th, name], i) => phaseSVG(70 + i * 140, 68, 46, th) + svgText(70 + i * 140, 146, name, { s: 17 })).join('')}</svg>`;
+}
+// 북극 위에서 본 달의 공전 궤도. marks: [[기호, 각도]] (0° = 오른쪽, 시계 반대 방향 +). left: 햇빛이 왼쪽에서 와요
+function figOrbit(marks, o) {
+  o = o || {};
+  const left = !!o.left, cx = left ? 250 : 210, cy = 205, R = 118, f = n => n.toFixed(1);
+  const pt = (deg, r) => [cx + r * Math.cos(deg * D2R), cy - r * Math.sin(deg * D2R)];
+  let s = `<svg class="fig sq" viewBox="0 0 460 410" role="img" aria-label="북극 위에서 본 달의 공전 궤도, 달의 위치 ${marks.map(m => m[0]).join(', ')}"><rect width="460" height="410" fill="#0d1838"/>`;
+  [75, 140, 205, 270, 335].forEach(y => {
+    const [x1, x2] = left ? [18, 76] : [442, 384], d = left ? 1 : -1;
+    s += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#ffcf5a" stroke-width="4"/><polygon points="${x2 + d * 12},${y} ${x2},${y - 7} ${x2},${y + 7}" fill="#ffcf5a"/>`;
+  });
+  s += svgText(left ? 48 : 412, 32, '햇빛', { s: 17, c: '#ffcf5a' });
+  s += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#9fc4ff" stroke-opacity=".7" stroke-width="2"/>`;
+  [120, 300].forEach(a => {
+    const [x, y] = pt(a, R), tx = -Math.sin(a * D2R), ty = -Math.cos(a * D2R);
+    s += `<polygon points="${f(x + tx * 11)},${f(y + ty * 11)} ${f(x - tx * 5 - ty * 7)},${f(y - ty * 5 + tx * 7)} ${f(x - tx * 5 + ty * 7)},${f(y - ty * 5 - tx * 7)}" fill="#7cc4ff"/>`;
+  });
+  s += `<circle cx="${cx}" cy="${cy}" r="26" fill="#3f86d6"/><path d="M${cx},${cy - 26} A26 26 0 0 ${left ? 1 : 0} ${cx},${cy + 26} Z" fill="#0b1230" opacity=".75"/>` + svgText(cx, cy + 46, '지구', { s: 15 });
+  marks.forEach(([name, deg]) => {
+    const [x, y] = pt(deg, R), [lx, ly] = pt(deg, R + 32);
+    s += `<circle cx="${f(x)}" cy="${f(y)}" r="14" fill="#2b3150" stroke="#8090c0"/><path d="M${f(x)},${f(y - 14)} A14 14 0 0 ${left ? 0 : 1} ${f(x)},${f(y + 14)} Z" fill="#ffd84a"/>` + svgText(f(lx), f(ly + 7), name, { s: 20, c: '#7ce0a0' });
+  });
+  return s + '</svg>';
+}
+// 서로 다른 날 해가 진 뒤 저녁 하늘 세 장 (학습지 20쪽 10번처럼): [이름, 위상각, x, y, 반지름] (칸 안 좌표)
+function figSky3(list) {
+  let s = `<svg class="fig" viewBox="0 0 420 190" role="img" aria-label="서로 다른 날 해가 진 뒤 저녁 하늘의 달 ${list.map(l => l[0]).join(', ')}"><defs><linearGradient id="sk3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1838"/><stop offset="1" stop-color="#3b3f6e"/></linearGradient></defs><rect width="420" height="190" fill="#0a1230"/>`;
+  list.forEach(([name, th, x, y, r], i) => {
+    const x0 = 6 + i * 138;
+    s += `<rect x="${x0}" y="6" width="132" height="134" fill="url(#sk3)"/><rect x="${x0}" y="140" width="132" height="8" fill="#141a2e"/>` + phaseSVG(x0 + x, y, r, th);
+    s += svgText(x0 + 14, 164, '동', { s: 14, c: '#ffb27a' }) + svgText(x0 + 66, 164, '남', { s: 14, c: '#ffb27a' }) + svgText(x0 + 118, 164, '서', { s: 14, c: '#ffb27a' }) + svgText(x0 + 66, 184, name, { s: 16 });
+  });
+  return s + '</svg>';
+}
+const FIGS = {
+  orbAB: () => figOrbit([['A', 180], ['B', 270]]),
+  ph9: () => figPhases([[315, '(가)'], [90, '(나)'], [180, '(다)']]),
+  sky3: () => figSky3([['(가)', 35, 108, 116, 14], ['(나)', 90, 66, 38, 13], ['(다)', 180, 24, 116, 14]]),
+  ph3: () => figPhases([[90, '(가)'], [180, '(나)'], [270, '(다)']]),
+  orb8: () => figOrbit([['H', 0], ['A', 45], ['B', 90], ['C', 135], ['D', 180], ['E', 225], ['F', 270], ['G', 315]]),
+  orbL: () => figOrbit([['1', 90], ['2', 180], ['3', 0], ['4', 270]], { left: true })
+};
+
+/* ───────── 저장 ───────── */
+const KEY = 'moon-phase-v1';
+const fresh = () => ({ view: 'intro', num: '', name: '', code: '', m1: { seen: {}, q: {} }, m2: { cur: 0, s: {}, seen: {}, q: {} }, m3: { seen: {}, q: {}, pred: null }, m4: { q: {} }, sentSig: '', sent: false });
+let state = fresh();
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.m1) state = Object.assign(fresh(), s, { view: 'intro' }); } catch (e) {}
+const ui = { tab: 0, rev: {}, fb: {}, server: null, teacher: null, submitMsg: '' };
+let syncTimer = null;
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} clearTimeout(syncTimer); syncTimer = setTimeout(sync, 1500); }
+
+const QS = { m1: [M1Q, () => state.m1.q], m2: [M2Q, () => state.m2.q], m3: [M3Q, () => state.m3.q], m4: [QUIZ, () => state.m4.q] };
+const qDone = (qs, rec) => qs.every((q, i) => rec[i] && rec[i].ok);
+const okCount = (qs, rec) => qs.filter((q, i) => rec[i] && rec[i].ok).length;
+const firstOk = (qs, rec) => qs.filter((q, i) => rec[i] && rec[i].ok && !rec[i].no.length).length;
+const CHECK = {
+  m1: [['orbit-top', '⬇️ 위에서 보며 달을 반 바퀴 이상 공전시켜 보기'], ['orbit-earth', '👀 지구에서 보며 달을 반 바퀴 이상 공전시켜 보기']],
+  m3: [['sky-play', '🌇 날마다 같은 시각: 음력 2일부터 15일까지 재생해 보기'], ['day-play', '🕐 하루 동안: 달이 뜨고 지는 모습 끝까지 재생해 보기']]
+};
+const seenAll = m => !Stage.ok || CHECK[m].every(([k]) => state[m].seen[k]);
+const posOk = i => !!(state.m2.s[i] && state.m2.s[i].ok);
+const posDone = () => POS.every((p, i) => posOk(i));
+const posFirst = () => POS.filter((p, i) => posOk(i) && !state.m2.s[i].no.length).length;
+const m3PredOk = () => !!(state.m3.pred && state.m3.pred.ok);
+const MISSIONS = [
+  { v: 'm1', t: '임무 1. 달의 공전', d: '지구 주위를 도는 달을 위와 지구에서 보며 공전 방향과 속도, 달이 밝게 보이는 까닭을 찾아요.', done: () => qDone(M1Q, state.m1.q), score: () => [firstOk(M1Q, state.m1.q), M1Q.length] },
+  { v: 'm2', t: '임무 2. 모형으로 위상 관찰', d: '교과서 탐구처럼 달을 ㉮~㉵에 놓고, 위에서 본 모형으로 지구에서 보일 모양을 예측한 뒤 지구에서 찍어 확인해요. 그리고 삭·망·상현·하현을 찾아요.', done: () => posDone() && qDone(M2Q, state.m2.q), score: () => [posFirst() + firstOk(M2Q, state.m2.q), 8 + M2Q.length] },
+  { v: 'm3', t: '임무 3. 위상 순서와 저녁 하늘', d: '해가 진 직후 달의 위치와 모양을 예측하고 확인한 뒤, 하루 동안 뜨고 지는 모습과 비교하고 위상 변화 순서와 날짜를 정리해요.', done: () => m3PredOk() && qDone(M3Q, state.m3.q), score: () => [firstOk(M3Q, state.m3.q), M3Q.length] },
+  { v: 'm4', t: '임무 4. 확인 퀴즈', d: `형성평가 유형 ${QUIZ.length}문제로 배운 내용을 정리해요.`, done: () => qDone(QUIZ, state.m4.q), score: () => [firstOk(QUIZ, state.m4.q), QUIZ.length] }
+];
+// 점수(처음 고른 답이 정답인 비율)가 70% 이상이어야 통과해서 다음 임무가 열려요. 못 넘으면 다시 도전해요
+const PASS = 0.7;
+const pct = i => { const [a, b] = MISSIONS[i].score(); return Math.round(a / b * 100); };
+const passed = i => MISSIONS[i].done() && pct(i) >= PASS * 100;
+const tries = i => state[MISSIONS[i].v].tries || 0;
+const unlocked = i => MISSIONS.slice(0, i).every((m, j) => passed(j));
+
+/* ───────── 화면 조각 ───────── */
+const on = c => c ? ' on' : '';
+function grp(label, act, items, cur, cls, dis) {
+  return `<span class="group${cls ? ' ' + cls : ''}"><span class="lbl">${label}</span>${items.map(([v, t]) => `<button class="chip${on(cur(v))}" data-act="${act}" data-v="${v}"${dis && dis(v) ? ' disabled' : ''}>${t}</button>`).join('')}</span>`;
+}
+const TOGN = { toon: '🌗 그림처럼 (밝은 쪽 노랗게)', deg13: '📐 하루 13°', half: '☀👁 빛 받는 쪽·보이는 쪽', all8: '🌓 8개 위치 한눈에', marks: '㉮~㉵ 위치', inset: '👀 지구에서 본 모양 창' };
+const PHB = [[0, '삭'], [45, '초승달'], [90, '상현달'], [180, '보름달(망)'], [270, '하현달'], [315, '그믐달']];
+function ctrls(o) {
+  o = o || {};
+  const S = Stage.S;
+  // 임무 3에서는 '날마다 같은 시각'과 '하루 동안'을 바꿔 가며 봐요
+  const sw = state.view === 'm3' ? `<div class="ctrl">${grp('보기', 'sview', [['sky', '🌇 날마다 같은 시각 (해 진 직후)'], ['day', '🕐 하루 동안']], v => S.view === v)}</div>` : '';
+  if (S.view === 'sky') {
+    return sw + `<div class="ctrl"><button class="chip big${S.playing ? '' : ' play'}" data-act="play">${S.playing ? '⏸ 멈춤' : '▶ 음력 2일부터 재생'}</button>${grp('날짜', 'sd', [[2, '2일'], [4, '4일'], [8, '7~8일'], [12, '12일'], [15, '15일']], v => !S.playing && Math.floor(S.sd) === v)}<span class="muted" style="align-self:center">👆 하늘의 달을 누르면 그 달이 하루 동안 뜨고 지는 모습을 볼 수 있어요</span></div>`;
+  }
+  if (S.view === 'day') {
+    const ended = S.hr >= S.hr0 + 24;
+    // 저녁 하늘에서 고른 달은 뜰 때 → 남중 → 지기 직전에서 멈춰요
+    const stopLbl = S.stops ? ({ sun: '▶ 해가 질 때까지', top: '▶ 남중할 때까지', 'top+sun': '▶ 남중할 때까지', set: '▶ 질 때까지' }[S.stopKinds[S.stopIdx]] || '↺ 뜰 때부터 다시') : '';
+    const back = S.skyFrom != null && state.view !== 'm3' ? '<button class="chip" data-act="skyback">🌇 저녁 하늘로 돌아가기</button>' : '';
+    return sw + `<div class="ctrl">${back}<button class="chip big${S.playing ? '' : ' play'}" data-act="play">${S.playing ? '⏸ 멈춤' : stopLbl || (ended ? '▶ 달이 뜰 때부터 하루 재생' : '▶ 이어서 재생')}</button>
+<button class="chip" data-act="hour">+1시간</button><button class="chip" data-act="nextday">📅 다음 날 같은 시각</button>
+${grp('빠르기', 'dspd', [[0, '🐢 느리게'], [1, '보통'], [2, '빠르게']], v => S.dspd === v)}</div>
+<div class="ctrl">${grp('달', 'dph', [[45, '초승달'], [90, '상현달'], [180, '보름달'], [270, '하현달'], [315, '그믐달']], v => S.dph === v)}</div>`;
+  }
+  let h = '<div class="ctrl">';
+  if (o.play !== false) h += `<button class="chip big${S.playing ? '' : ' play'}" data-act="play">${S.playing ? '⏸ 멈춤' : '▶ 재생'}</button>
+<button class="chip" data-act="step" data-v="${Stage.DAY13}">+1일</button><button class="chip" data-act="step" data-v="45">+⅛바퀴</button><button class="chip" data-act="restart">↺ 처음으로</button>
+${grp('빠르기', 'spd', [[0, '느리게'], [1, '보통'], [2, '빠르게']], v => S.speed === v)}`;
+  // 임무 2에서는 모양을 맞힌 뒤에만 지구에서 보기로 확인할 수 있어요 (먼저 위에서 보고 생각해요)
+  const lockEarth = state.view === 'm2' && !posOk(state.m2.cur);
+  h += grp('보는 곳', 'cam', [['oblique', '🔭 비스듬히'], ['top', '⬇️ 위에서'], ['earth', lockEarth ? '🔒 지구에서 보기 (맞힌 뒤 확인)' : '👀 지구에서 보기']], v => S.cam === v, '', v => lockEarth && v === 'earth');
+  if (S.cam !== 'earth') h += `<button class="chip${on(S.focus)}" data-act="focus">🎯 달 확대해서 따라가기</button>`;
+  h += '</div>';
+  if (state.view === 'class') h += `<div class="ctrl">${grp('달 위치', 'th', PHB, v => !S.playing && S.goal == null && Math.round(norm(S.th)) === v)}</div>`;
+  const togs = o.tog === undefined ? ['toon', 'half', 'all8', 'marks', 'inset'] : o.tog;
+  if (togs && togs.length && S.cam !== 'earth') h += `<div class="ctrl">${grp('보기', 'tog', togs.map(k => [k, TOGN[k]]), k => S[k])}</div>`;
+  return h;
+}
+function fill(str, key) {
+  let n = 0;
+  return str.replace(/\[(.+?)\]/g, (m, w) => { const k = key + '-' + (n++), show = ui.rev[k]; return `<button class="blank${show ? ' show' : ''}" data-act="reveal" data-k="${k}">${w}</button>`; });
+}
+function qList(m, locked) {
+  const [qs, recf] = QS[m], rec = recf();
+  return qs.map((q, i) => {
+    const r = rec[i] || { no: [] }, f = ui.fb[m + i];
+    const s = esc(q.s).replace('___', `<span class="blank${r.ok ? ' ok' : ''}">${r.ok ? esc(q.o[q.a]) : '?'}</span>`);
+    return `<div class="q${locked ? ' locked' : ''}">${q.fig ? FIGS[q.fig]() : ''}<div class="s">${i + 1}. ${s}</div>
+<div class="opts">${q.o.map((o, j) => `<button class="opt${r.no.includes(j) ? ' no' : ''}${r.ok && j === q.a ? ' sel' : ''}" data-act="ans" data-m="${m}" data-i="${i}" data-j="${j}"${locked || r.ok ? ' disabled' : ''}>${esc(o)}</button>`).join('')}</div>
+${f && !r.ok ? `<div class="fb bad">${f}</div>` : ''}${r.ok ? `<div class="fb ok">${r.no.length ? '✔ 맞아요!' : '🎯 한 번에 정답!'}</div>${q.ex ? `<div class="fb ex">💡 ${esc(q.ex)}</div>` : ''}` : ''}</div>`;
+  }).join('');
+}
+function checklist(m) {
+  return `<ul class="check">${CHECK[m].map(([k, t]) => { const ok = !Stage.ok || state[m].seen[k]; return `<li class="${ok ? 'ok' : ''}">${ok ? '✅' : '⬜'} ${t}</li>`; }).join('')}</ul>`;
+}
+function doneBox(i) {
+  const next = MISSIONS[i + 1], [a, b] = MISSIONS[i].score(), p = pct(i), sc = `점수 ${a}/${b} (${p}%)`;
+  if (!passed(i)) return `<div class="done retry"><b>🔁 ${sc}</b><span>처음 고른 답이 정답인 비율이 <b>70% 이상</b>이어야 다음 임무로 갈 수 있어요. 해설을 다시 읽고 도전해요!</span><button class="btn small" data-act="retry" data-v="${MISSIONS[i].v}">🔁 다시 도전하기</button></div>`;
+  return `<div class="done"><b>🏅 ${MISSIONS[i].t} 통과! · ${sc}</b>${next ? `<button class="btn small" data-act="enter" data-v="${next.v}">다음 임무 →</button>` : '<button class="btn small" data-act="enter" data-v="cert">결과 보기 →</button>'}</div>`;
+}
+function mTop(title) {
+  return `<div class="top"><button class="btn ghost small" data-act="enter" data-v="map">← 임무 목록</button><span class="title" style="font-size:24px">${title}</span><span class="grow"></span><span class="pill">🧑‍🚀 <b>${esc(state.num)} ${esc(state.name)}</b></span></div>`;
+}
+const phaseStrip = () => `<div class="pstrip">${PH6.map(([th, n, d]) => `<span>${phaseIcon(th, 34)}<b>${n}</b>${d}</span>`).join('')}</div>`;
+// 문제 풀 때 펼쳐 보는 달 모양 찾기 요령
+function tipBox() {
+  return `<details class="tip"${ui.tipOpen ? ' open' : ''}><summary>💡 달 모양 찾기 요령 (눌러서 펼치기)</summary><ol>
+<li><b>밝은 쪽</b>: 달은 언제나 <b>햇빛이 오는 쪽 절반</b>이 밝아요.</li>
+<li><b>보이는 쪽</b>: 지구에서는 <b>지구를 향한 절반</b>만 보여요. 그림에서 지구와 달을 잇는 선에 수직인 선을 그어 지구 쪽 반을 찾아요.</li>
+<li>두 반쪽이 <b>겹친 부분</b>이 지구에서 보이는 달의 모양이에요.</li>
+<li><b>삭</b>: 태양 – 달 – 지구 (달이 태양 쪽) · <b>망</b>: 태양 – 지구 – 달 (달이 태양 반대쪽) · <b>상현·하현</b>: 달과 태양이 지구를 중심으로 수직</li>
+<li><b>순서</b>: 삭 → 초승달 → 상현달 → 보름달(망) → 하현달 → 그믐달 → 삭 ("삭초상망하그"). <b>오른쪽</b>이 밝으면 음력 15일 전(차오르는 달), <b>왼쪽</b>이 밝으면 음력 15일 뒤(작아지는 달)</li>
+<li><b>해가 진 직후</b>: 음력 2일 서쪽 초승달 · 7~8일 남쪽 상현달 · 15일 동쪽 보름달 (매일 약 13°씩 동쪽으로)</li>
+</ol>${phaseStrip()}<p class="muted" style="margin:6px 0 0">날짜는 음력이에요.</p></details>`;
+}
+
+/* ───────── 화면 ───────── */
+function viewIntro() {
+  const form = state.num
+    ? `<p><b>${esc(state.num)} ${esc(state.name)}</b> 대원, 이어서 할까요?</p><div class="row"><button class="btn" data-act="enter" data-v="map">이어서 하기</button><button class="btn ghost small" data-act="wipe">다른 사람으로 시작</button></div>`
+    : `<label for="num">학번</label><input id="num" inputmode="numeric" maxlength="6" placeholder="예: 10312" autocomplete="off">
+<label for="name">이름</label><input id="name" maxlength="12" placeholder="이름" autocomplete="off">
+${CONFIG.SUBMIT_URL ? '<label for="ccode">수업 코드</label><input id="ccode" maxlength="30" placeholder="선생님이 알려 준 코드" autocomplete="off">' : ''}
+<div class="row" style="margin-top:12px"><button class="btn" data-act="start">탐사 시작</button></div><p id="introMsg" class="fb bad"></p>`;
+  return `<section class="intro"><div><div class="stage-slot"></div><p class="note">햇빛은 오른쪽에서 와요. 달이 지구 주위를 돌면 오른쪽 위 "지구에서 본 모양"이 바뀌어요. 화면을 끌어서 돌려 보세요.</p></div>
+<div class="intro-r"><p class="kicker">Ⅲ. 태양계 · 3. 달의 운동 · 달의 위상 변화</p><h1>🌙 달 모양 관측소</h1>
+<p class="lead">달이 지구 주위를 <b>공전</b>하면 태양·지구·달의 위치가 바뀌어 <b>달의 모양(위상)</b>이 달라져요. 모형으로 그 까닭을 찾아요.</p>
+<div class="panel"><h3>👩‍🏫 수업 모드</h3><p class="muted">선생님과 함께 큰 화면으로 살펴봐요.</p><button class="btn" data-act="enter" data-v="class">수업 모드 열기</button></div>
+<div class="panel"><h3>🧑‍🚀 탐사 모드</h3><p class="muted">혼자서 관찰하고 예측하는 임무 4개예요.</p>${form}</div>
+${CONFIG.SUBMIT_URL ? '<div style="text-align:right"><button class="btn ghost small" data-act="teacher">👩‍🏫 교사용</button></div>' : ''}</div></section>`;
+}
+function viewClass() {
+  const T = TABS[ui.tab];
+  return `<div class="top"><span class="title" style="font-size:26px">👩‍🏫 수업 모드</span><div class="tabs">${TABS.map((t, i) => `<button class="tab${on(i === ui.tab)}" data-act="tab" data-i="${i}">${t.name}</button>`).join('')}</div><span class="grow"></span><button class="btn ghost small" data-act="enter" data-v="intro">← 처음 화면</button></div>
+<div class="cl-stage"><div class="stage-slot"></div>${ctrls()}</div>
+<section class="panel concept big"><div class="row"><h3 style="flex:1">${T.title}</h3><button class="btn ghost small" data-act="revall">${T.lines.every((l, i) => fill(l, ui.tab + '-' + i).indexOf('blank"') < 0) ? '빈칸 가리기' : '빈칸 모두 보기'}</button></div>
+<ol>${T.lines.map((l, i) => `<li>${fill(l, ui.tab + '-' + i)}</li>`).join('')}</ol>
+<div class="ask">💬 ${T.ask}</div><p class="note">빈칸을 누르면 하나씩 답이 보여요. (학습지 13~15쪽)</p></section>`;
+}
+function viewMap() {
+  const n = MISSIONS.filter((m, i) => passed(i)).length;
+  return `<div class="top"><span class="title" style="font-size:26px">🧑‍🚀 탐사 임무</span><span class="pill">진행 <b>${n}/4</b></span><span class="grow"></span><span class="pill">🧑‍🚀 <b>${esc(state.num)} ${esc(state.name)}</b></span><button class="btn ghost small" data-act="enter" data-v="cert">📋 결과</button><button class="btn ghost small" data-act="enter" data-v="intro">← 처음 화면</button></div>
+<div class="mcards">${MISSIONS.map((m, i) => { const ok = unlocked(i), d = passed(i), re = m.done() && !d; return `<section class="panel mcard${ok ? '' : ' lock'}"><span class="n">${d ? `<span class="st-done">✔ 통과 ${pct(i)}%</span>` : re ? `<span class="st-re">🔁 재도전 필요 (${pct(i)}%)</span>` : ok ? '도전 가능' : '🔒 앞 임무를 70% 이상으로 통과해요'}</span><h3>${m.t}</h3><p class="muted">${m.d}</p><div class="row">${re ? `<button class="btn small" data-act="retry" data-v="${m.v}">🔁 다시 도전하기</button>` : `<button class="btn${d ? ' ghost' : ''} small" data-act="enter" data-v="${m.v}"${ok ? '' : ' disabled'}>${d ? '다시 보기' : '시작'}</button>`}</div></section>`; }).join('')}</div>
+${MISSIONS.every((m, i) => passed(i)) ? '<div class="done"><b>🎉 모든 임무를 마쳤어요!</b><button class="btn small" data-act="enter" data-v="cert">결과 보기 →</button></div>' : ''}`;
+}
+function missionPage(i, title, side, ctrlOpts) {
+  return mTop(title) + `<div class="lesson"><div><div class="stage-slot"></div>${ctrls(ctrlOpts)}</div><aside class="panel">${side}${MISSIONS[i].done() ? doneBox(i) : ''}</aside></div>`;
+}
+function viewM1() {
+  const ok = seenAll('m1');
+  return missionPage(0, '🌙 임무 1. 달의 공전', `<h3>🔭 관찰하기</h3><p class="muted">⬇️ 위에서 보기로 재생해 달이 지구 주위를 도는 방향을 보고, 👀 지구에서 보기로 바꿔 달의 모양이 어떻게 바뀌는지 보세요. 햇빛은 오른쪽에서 와요.</p>${checklist('m1')}
+<div class="boxq"><b>🌙 달의 공전</b>
+<ul style="margin:6px 0 0 18px;padding:0"><li>달은 <b>지구</b>를 중심으로 <b>서 → 동</b>(북극 위에서 보면 시계 반대 방향)으로 돌아요.</li><li>약 <b>한 달</b>에 한 바퀴, 하루에 약 <b>13°</b>씩 움직여요.</li><li>달은 스스로 빛을 내지 못하고 <b>햇빛을 반사</b>해서 밝게 보여요.</li></ul>
+<p class="muted" style="margin-top:6px">👀 지구에서 보기로 볼 때, 달의 밝은 쪽은 어디를 향하는지 위에서 본 작은 지도(왼쪽 아래)와 함께 비교해 보세요.</p></div>
+<h3>📝 탐사 보고서</h3>${ok ? '' : '<p class="fb bad">관찰을 먼저 마치면 문제를 풀 수 있어요.</p>'}${qList('m1', !ok)}`, { tog: ['toon'] });
+}
+function viewM2() {
+  const cur = state.m2.cur, r = state.m2.s[cur] || { no: [] }, f = ui.fb.shape, earth = Stage.S.cam === 'earth';
+  const ans = POS[cur][1], ansIdx = ans / 45;
+  const pills = `<div class="steps">${POS.map(([n], i) => `<button class="stp${on(i === cur)}${posOk(i) ? ' ok' : ''}" data-act="m2go" data-v="${i}">${n}</button>`).join('')}</div>`;
+  // 순서: ⬇️ 위에서 본 모형으로 생각해서 고르기 → 맞히면 👀 지구에서 보기로 확인
+  const rec = `<h3>🤔 ${POS[cur][0]} 위치의 달은 지구에서 어떤 모양으로 보일까?</h3>
+<p class="muted">⬇️ 위에서 본 모형에서 <b>노란 쪽(햇빛 받는 쪽)</b> 가운데 <b>지구 쪽을 향한 부분</b>이 얼마나 되는지 생각해서 골라요. 맞히면 👀 지구에서 보기로 확인할 수 있어요.</p>
+<div class="opts shapes">${SHAPES.map(([th, d], j) => `<button class="opt${r.no.includes(j) ? ' no' : ''}${r.ok && j === ansIdx ? ' sel' : ''}" data-act="shape" data-j="${j}"${r.ok ? ' disabled' : ''}>${phaseIcon(th, 40)}${d}</button>`).join('')}</div>
+${f && !r.ok ? `<div class="fb bad">${f}</div>` : ''}${r.ok ? `<div class="fb ok">${r.no.length ? '✔ 맞아요!' : '🎯 한 번에 정답!'}</div>` : ''}
+${r.ok ? `<div class="row" style="margin-top:10px">${earth ? '<button class="btn ghost small" data-act="cam" data-v="top">⬇️ 다시 위에서 보기</button>' : '<button class="btn small" data-act="cam" data-v="earth">👀 지구에서 보기로 확인하기</button>'}${!posDone() ? `<button class="btn${earth ? '' : ' ghost'} small" data-act="m2go" data-v="${POS.findIndex((p, i) => !posOk(i))}">다음 위치 →</button>` : ''}</div>` : ''}`;
+  const pd = posDone();
+  const sum = pd ? `<div class="pstrip p8" style="margin-top:12px">${POS.map(([n, a]) => `<span>${phaseIcon(a, 30)}<b>${n}</b></span>`).join('')}</div>
+<div class="fb ex">💡 달은 언제나 햇빛 쪽 절반이 밝지만, 지구에서 보이는 쪽이 바뀌어서 ㉵(안 보임) → ㉮ → ㉯(오른쪽 반원) → ㉰ → ㉱(둥근 달) → ㉲ → ㉳(왼쪽 반원) → ㉴ → 다시 ㉵ 순서로 모양이 바뀌어요.</div>` : '';
+  return missionPage(1, '📷 임무 2. 모형으로 위상 관찰', `<p class="muted">교과서 탐구처럼 달 모형을 ㉮~㉵에 차례로 놓아요. 먼저 <b>위에서 본 모형만 보고</b> 지구에서 보일 모양을 예측한 뒤, 지구 위치에서 스마트 기기로 찍은 모습으로 확인해요. 햇빛은 오른쪽에서 와요.</p>${tipBox()}${pills}${rec}${sum}
+<h3 style="margin-top:14px">📝 탐사 보고서</h3>${pd ? '' : '<p class="fb bad">8개 위치를 모두 기록하면 문제를 풀 수 있어요.</p>'}${qList('m2', !pd)}`, { play: false, tog: ['half'] });
+}
+function viewM3() {
+  const p = state.m3.pred || { no: [] }, f = ui.fb.pred, ok = m3PredOk() && seenAll('m3');
+  const pred = `<div class="boxq"><b>🔮 먼저 예측!</b> ${esc(M3P.s)}
+<div class="opts">${M3P.o.map((o, j) => `<button class="opt${p.no.includes(j) ? ' no' : ''}${p.ok && j === M3P.a ? ' sel' : ''}" data-act="pred" data-j="${j}"${p.ok ? ' disabled' : ''}>${esc(o)}</button>`).join('')}</div>
+${f ? `<div class="fb ${f.ok ? 'ok' : 'bad'}">${f.msg}</div>` : ''}${p.ok ? `<div class="fb ex">💡 ${esc(M3P.ex)}</div>` : ''}</div>`;
+  return missionPage(2, '🌇 임무 3. 위상 순서와 저녁 하늘', `<h3>🔭 관찰하기</h3><p class="muted">해가 진 직후, 같은 시각에 남쪽을 보고 선 하늘이에요. (왼쪽 동쪽, 오른쪽 서쪽) 예측을 고르면 음력 2일부터 15일까지 이어서 보여 줘요.</p>${pred}
+${m3PredOk() ? checklist('m3') + '<div class="boxq"><b>⚠️ 방향 비교</b> 화면 아래 <b>🕐 하루 동안</b>을 눌러 보세요. 하루 동안 달은 해처럼 <b>동 → 서</b>(지구의 자전)로 움직이지만, 날마다 같은 시각에 보면 <b>서 → 동</b>(달의 공전)으로 옮겨 가요.</div>' : ''}
+<h3>📝 탐사 보고서</h3>${ok ? '' : '<p class="fb bad">예측하고, 두 가지 보기를 모두 끝까지 재생해 보면 문제를 풀 수 있어요.</p>'}${qList('m3', !ok)}`);
+}
+function viewM4() {
+  const [qs, recf] = QS.m4, rec = recf();
+  return mTop('📝 임무 4. 확인 퀴즈') + `<p class="muted">모두 ${qs.length}문제예요. 틀리면 힌트를 보고 다시 골라요. 처음 고른 답이 정답인 문제 수가 기록돼요. (지금 ${okCount(qs, rec)}/${qs.length})</p>${tipBox()}
+<div class="quiz">${qList('m4', false).split('<div class="q').slice(1).map(x => `<section class="panel"><div class="q${x}</section>`).join('')}</div>${MISSIONS[3].done() ? doneBox(3) : ''}`;
+}
+function scoreRows() {
+  const st = i => !MISSIONS[i].done() ? '진행 중' : `${passed(i) ? '통과' : '재도전 필요'} · 점수 ${pct(i)}%${tries(i) ? ` · 재도전 ${tries(i)}번` : ''}`;
+  return MISSIONS.map((m, i) => [m.t, st(i)]);
+}
+function viewCert() {
+  return `<div class="top"><button class="btn ghost small" data-act="enter" data-v="map">← 임무 목록</button><span class="title" style="font-size:26px">📋 탐사 결과</span></div>
+<section class="panel" style="max-width:640px"><h3>🧑‍🚀 ${esc(state.num)} ${esc(state.name)}</h3>
+<dl class="score">${scoreRows().map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('')}</dl>
+${CONFIG.SUBMIT_URL ? `<p class="muted">진행 상황은 임무를 풀 때마다 선생님께 자동으로 보내져요.</p><div class="row"><button class="btn" data-act="submit">📤 지금 선생님께 보내기</button></div>${ui.submitMsg ? `<p class="fb">${ui.submitMsg}</p>` : ''}` : '<p class="muted">이 화면을 캡처해서 제출하세요.</p>'}
+<p class="note">여러 학생이 함께 쓰는 기기라면, 다 마친 뒤 기록을 지워 주세요. <button class="btn ghost small" data-act="wipe">🗑 이 기기에서 내 기록 지우기</button></p></section>`;
+}
+
+/* ───────── 교사 화면 (교사 코드는 Apps Script에서만 확인) ───────── */
+function viewTeacher() {
+  const T = ui.teacher || (ui.teacher = { data: null, code: '', msg: '', cls: '' });
+  const head = `<div class="top"><span class="title" style="font-size:24px">👩‍🏫 교사 화면 · 달의 위상</span><span class="grow"></span>${T.data ? '<button class="btn ghost small" data-act="tload">🔄 새로고침</button>' : ''}<button class="btn ghost small" data-act="enter" data-v="intro">← 처음 화면</button></div>`;
+  if (!T.data) return head + `<section class="panel" style="max-width:440px"><h3>교사 코드 입력</h3>
+<div class="row"><input id="tcode" type="password" maxlength="30" placeholder="교사 코드" autocomplete="off" style="flex:1;min-width:160px"><button class="btn" data-act="tload">결과 보기</button></div>
+${T.msg ? `<p class="fb ${T.msg.startsWith('불러') ? '' : 'bad'}">${T.msg}</p>` : ''}</section>`;
+  const { headers, rows } = T.data;
+  const iNum = headers.indexOf('학번'), iTime = headers.indexOf('마지막 활동');
+  const cls = r => { const n = String(r[iNum] || ''); return n.length > 2 ? n.slice(0, -2) : ''; };
+  const clsName = c => c.length === 3 ? `${c[0]}학년 ${+c.slice(1)}반` : c;
+  const classes = [...new Set(rows.map(cls))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'ko', { numeric: true }));
+  const list = rows.filter(r => !T.cls || cls(r) === T.cls).sort((a, b) => String(a[iNum]).localeCompare(String(b[iNum]), 'ko', { numeric: true }));
+  const order = headers.map((h, i) => i).filter(i => i !== iTime).concat(iTime >= 0 ? [iTime] : []);
+  const mi = headers.map((h, i) => h.startsWith('임무') ? i : -1).filter(i => i >= 0);
+  const cell = v => v === '완료' ? '<span class="tok">✔ 완료</span>' : v === '-' || v === '' ? '<span class="muted">–</span>' : esc(v);
+  return head + `<div class="row"><button class="btn small${T.cls ? ' ghost' : ''}" data-act="tcls" data-c="">전체</button>${classes.map(c => `<button class="btn small${T.cls === c ? '' : ' ghost'}" data-act="tcls" data-c="${esc(c)}">${clsName(c)}</button>`).join('')}</div>
+<div class="tstats"><div>참여 학생<b>${list.length}명</b></div>${mi.map(i => `<div>${esc(headers[i])} 완료<b>${list.filter(r => r[i] === '완료').length}명</b></div>`).join('')}</div>
+<section class="panel"><div class="tbl-wrap"><table class="ttbl"><thead><tr>${order.map(i => `<th>${esc(headers[i])}</th>`).join('')}</tr></thead><tbody>
+${list.length ? list.map(r => `<tr>${order.map(i => `<td>${i === iTime ? `<small>${esc(r[i])}</small>` : cell(r[i])}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${order.length}" class="muted" style="text-align:center">아직 참여한 학생이 없어요.</td></tr>`}
+</tbody></table></div><p class="note">"한 번에"는 처음 고른 답이 정답이었던 문제 수예요. 학번 앞 3자리로 반을 나눠요. (예: 10312 → 1학년 3반)</p></section>`;
+}
+async function teacherLoad() {
+  const T = ui.teacher, inp = document.getElementById('tcode');
+  if (inp) T.code = inp.value.trim();
+  if (!T.code) { T.msg = '교사 코드를 입력해 주세요.'; render(); return; }
+  T.msg = '불러오는 중…'; render();
+  try {
+    if (!(await hello())) { T.msg = 'Apps Script가 아직 예전 버전이에요. 일주운동 폴더의 apps-script.gs로 바꾸고 새 버전으로 배포해 주세요.'; render(); return; }
+    const out = await post({ lesson: CONFIG.LESSON, action: 'list', teacher: T.code });
+    if (out.ok) { T.data = { headers: out.headers || [], rows: out.rows || [] }; T.msg = ''; }
+    else T.msg = out.error === 'teacher' ? '교사 코드가 맞지 않아요.' : '결과를 불러오지 못했어요.';
+  } catch (err) { T.msg = '인터넷 연결을 확인해 주세요.'; }
+  render();
+}
+
+/* ───────── 그리기 ───────── */
+const app = document.getElementById('app');
+const VIEWS = { intro: viewIntro, class: viewClass, map: viewMap, m1: viewM1, m2: viewM2, m3: viewM3, m4: viewM4, cert: viewCert, teacher: viewTeacher };
+function render() {
+  app.innerHTML = (VIEWS[state.view] || viewIntro)();
+  const slot = app.querySelector('.stage-slot'); if (slot) slot.replaceWith(Stage.el);
+}
+const BASE = { playing: false, speed: 1, cam: 'oblique', th: 30, half: false, all8: false, marks: false, inset: true, hudAns: true, lit: false, deg13: false, toon: true, focus: false, stops: null, skyFrom: null, dprev: null };
+function tabSetup() {
+  Stage.set(Object.assign({}, BASE, TABS[ui.tab].setup));
+  if (Stage.S.view === 'day') Stage.playDay();
+  Stage.preset();
+}
+function m2Setup() {
+  // 위치를 바꿀 때마다 ⬇️ 위에서 보기로 돌아가요. 지구에서 본 모양 창은 답이 보이므로 숨겨요
+  Stage.set({ view: 'orbit', cam: 'top', focus: false, th: POS[state.m2.cur][1], playing: false, all8: false, marks: true, inset: false, hudAns: false });
+}
+function enter(v) {
+  if (['map', 'm1', 'm2', 'm3', 'm4', 'cert'].includes(v) && !state.num) v = 'intro';
+  const i = MISSIONS.findIndex(m => m.v === v);
+  if (i > 0 && !unlocked(i)) v = 'map';
+  state.view = v; ui.fb = {}; ui.submitMsg = '';
+  if (CHECK[v]) CHECK[v].forEach(([k]) => { delete Stage.watch[k]; });
+  if (v === 'intro') { Stage.set(Object.assign({}, BASE, { view: 'orbit', playing: true })); Stage.preset(); }
+  if (v === 'class') tabSetup();
+  if (v === 'm1') { Stage.set(Object.assign({}, BASE, { view: 'orbit', cam: 'top', th: 0 })); Stage.preset(); }
+  if (v === 'm2') { Stage.set({ cam: 'top', half: false }); m2Setup(); Stage.preset(); }
+  if (v === 'm3') Stage.set({ view: 'sky', sd: 2, playing: false, hudAns: false });
+  save(); render(); window.scrollTo(0, 0);
+}
+Stage.hooks.big = () => state.view === 'class';
+Stage.hooks.watch = k => {
+  if (state.view === 'm1' && CHECK.m1.some(([kk]) => kk === k) && !state.m1.seen[k]) { state.m1.seen[k] = true; save(); render(); }
+};
+// 답을 고를 때마다 화면을 다시 그리므로, 요령 상자를 펼친 상태를 기억해 둬요
+app.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('tip')) ui.tipOpen = e.target.open; }, true);
+Stage.hooks.change = k => {
+  if ((k === 'sky' || k === 'day') && state.view === 'm3' && m3PredOk() && !state.m3.seen[k + '-play']) { state.m3.seen[k + '-play'] = true; save(); }
+  if (Stage.el.isConnected) render();
+};
+// 임무 2: 지구에서 보기로 그 위치의 달을 '찍으면' 모양을 고를 수 있어요
+function m2See() { if (state.view === 'm2' && Stage.S.cam === 'earth' && !state.m2.seen[state.m2.cur]) { state.m2.seen[state.m2.cur] = true; save(); } }
+
+/* ───────── 동작 ───────── */
+app.addEventListener('click', async e => {
+  const t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
+  const a = t.dataset.act, v = t.dataset.v, S = Stage.S;
+  if (a === 'enter') enter(v);
+  else if (a === 'retry') {
+    // 문제 답만 지우고 다시 풀어요 (관찰 체크와 임무 3 예측은 남겨요). 임무 2는 모양 기록도 다시 해요
+    const m = state[v]; m.q = {}; m.tries = (m.tries || 0) + 1;
+    if (v === 'm2') { m.s = {}; m.cur = 0; }
+    save(); enter(v); window.scrollTo(0, 0);
+  }
+  else if (a === 'tab') { ui.tab = +t.dataset.i; tabSetup(); render(); }
+  else if (a === 'reveal') { ui.rev[t.dataset.k] = !ui.rev[t.dataset.k]; render(); }
+  else if (a === 'revall') {
+    const T = TABS[ui.tab], keys = [];
+    T.lines.forEach((l, i) => { let n = 0; l.replace(/\[(.+?)\]/g, () => keys.push(ui.tab + '-' + i + '-' + (n++))); });
+    const show = !keys.every(k => ui.rev[k]); keys.forEach(k => { ui.rev[k] = show; }); render();
+  }
+  else if (a === 'play') { Stage.play(); render(); }
+  else if (a === 'step') { Stage.step(+v); render(); }
+  else if (a === 'spd') { Stage.set({ speed: +v }); render(); }
+  else if (a === 'cam') { Stage.set({ cam: v }); m2See(); render(); }
+  else if (a === 'th') { Stage.set({ th: +v, playing: false }); render(); }
+  else if (a === 'focus') { Stage.set({ focus: !S.focus }); render(); }
+  else if (a === 'tog') { Stage.set({ [v]: !S[v] }); render(); }
+  else if (a === 'restart') { Stage.set({ th: 0, playing: false }); render(); }
+  else if (a === 'sd') { Stage.set({ sd: +v, playing: false }); render(); }
+  else if (a === 'skyback') { Stage.set({ view: 'sky', playing: false, sd: Stage.S.skyFrom, stops: null, skyFrom: null }); render(); }
+  else if (a === 'dspd') { Stage.set({ dspd: +v }); render(); }
+  else if (a === 'hour') { Stage.stepHour(); render(); }
+  else if (a === 'nextday') { Stage.nextDay(); render(); }
+  else if (a === 'dph') { Stage.setPhase(+v); Stage.playDay(); render(); }
+  else if (a === 'sview') { Stage.set({ view: v, playing: false }); if (v === 'day') { Stage.setPhase(Stage.S.dph); Stage.playDay(); } render(); }
+  else if (a === 'start') startMission(t);
+  else if (a === 'wipe') {
+    if (confirm('이 기기에 저장된 탐사 기록을 모두 지울까요? (선생님께 보낸 결과는 지워지지 않아요)')) {
+      state = fresh(); try { localStorage.removeItem(KEY); } catch (err) {} enter('intro');
+    }
+  }
+  else if (a === 'ans') {
+    const m = t.dataset.m, i = +t.dataset.i, j = +t.dataset.j, [qs, recf] = QS[m], rec = recf(), q = qs[i];
+    if (m === 'm1' && !seenAll('m1')) return;
+    if (m === 'm2' && !posDone()) return;
+    if (m === 'm3' && !(m3PredOk() && seenAll('m3'))) return;
+    const r = rec[i] || (rec[i] = { no: [] }); if (r.ok) return;
+    if (j === q.a) { r.ok = true; ui.fb[m + i] = ''; }
+    else { if (!r.no.includes(j)) r.no.push(j); ui.fb[m + i] = `🔎 다시 생각해 봐요.${q.h ? ' ' + esc(q.h) : ''}`; }
+    save(); render();
+  }
+  else if (a === 'm2go') { state.m2.cur = +v; ui.fb = {}; m2Setup(); m2See(); save(); render(); }
+  else if (a === 'shape') {
+    const cur = state.m2.cur, j = +t.dataset.j, r = state.m2.s[cur] || (state.m2.s[cur] = { no: [] });
+    if (r.ok) return;
+    if (j * 45 === POS[cur][1]) { r.ok = true; ui.fb.shape = ''; }
+    else { if (!r.no.includes(j)) r.no.push(j); ui.fb.shape = r.no.length >= 2 ? '🔎 아래 <b>☀👁 빛 받는 쪽·보이는 쪽</b>을 켜 보세요. 노란 반쪽(밝은 쪽)과 분홍 반원(지구에서 보이는 쪽)이 겹친 부분이 보이는 모양이에요. 💡 달 모양 찾기 요령도 펼쳐 보세요.' : '🔎 지구에 서서 달을 본다고 생각해 보세요. 지구 쪽을 향한 절반 가운데 노란 부분이 얼마나, 어느 쪽에 있나요? (지구에서 달을 보면 위에서 본 그림의 왼쪽·오른쪽이 그대로가 아닐 수 있어요)'; }
+    save(); render();
+  }
+  else if (a === 'pred') {
+    const p = state.m3.pred || (state.m3.pred = { no: [] }), j = +t.dataset.j; if (p.ok) return;
+    if (j === M3P.a) { p.ok = true; ui.fb.pred = { ok: true, msg: p.no.length ? '✔ 맞아요! 직접 보고 찾았어요.' : '🎯 예측 성공! 화면에서 확인해 보세요.' }; }
+    else { if (!p.no.includes(j)) p.no.push(j); ui.fb.pred = { ok: false, msg: '🤔 예측과 실제를 비교해 보세요. 달이 날마다 어느 쪽으로 가고 모양이 어떻게 바뀌는지 보고 다시 골라요.' }; }
+    Stage.set({ view: 'sky' }); Stage.playSky();
+    save(); render();
+  }
+  else if (a === 'teacher') { ui.teacher = null; state.view = 'teacher'; render(); }
+  else if (a === 'tload') teacherLoad();
+  else if (a === 'tcls') { ui.teacher.cls = t.dataset.c; render(); }
+  else if (a === 'submit') submit();
+});
+async function startMission(btn) {
+  const val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const num = val('num'), name = val('name'), msg = document.getElementById('introMsg');
+  if (!num || !name) { msg.textContent = '학번과 이름을 모두 입력해 주세요.'; return; }
+  if (CONFIG.SUBMIT_URL) {
+    const code = val('ccode');
+    if (!code) { msg.textContent = '수업 코드도 입력해 주세요.'; return; }
+    msg.textContent = '수업 코드를 확인하는 중…'; btn.disabled = true;
+    try {
+      const out = await post({ lesson: CONFIG.LESSON, action: 'check', code });
+      if (!out.ok) { msg.textContent = '수업 코드가 맞지 않아요. 다시 확인해 주세요.'; btn.disabled = false; return; }
+    } catch (err) { /* 인터넷이 잠시 안 되면 일단 시작하고, 나중에 다시 보내요 */ }
+    state.code = code;
+  }
+  state.num = num; state.name = name;
+  // 선생님 시험용: 학번 00000으로 들어오면 바로 결과(보내기) 화면으로
+  if (num === '00000') { enter('cert'); ui.submitMsg = '🧪 선생님 시험 모드예요. 보내기를 눌러 구글 시트에 줄이 생기는지 확인하세요.'; render(); return; }
+  enter('map');
+}
+
+/* ───────── 선생님께 진행 상황 보내기 (시트 '달의 위상 현황' 탭, 학생 한 명당 한 줄) ───────── */
+async function post(body) {
+  const res = await fetch(CONFIG.SUBMIT_URL, { method: 'POST', body: JSON.stringify(body) });
+  return res.json();
+}
+async function hello() {
+  if (ui.server != null) return ui.server;
+  const out = await post({ action: 'hello' });
+  ui.server = !!(out && out.lessons);
+  return ui.server;
+}
+const COLS = ['임무 1 달의 공전', '임무 2 모형 관찰', '임무 3 순서와 저녁 하늘', '임무 4 확인 퀴즈', '공전 문제 (한 번에)', '모형 관찰 (한 번에)', '순서·저녁 하늘 (한 번에)', '확인 퀴즈 (한 번에)', '틀린 답'];
+function progressVals() {
+  // 통과/재도전 필요와 재도전 횟수도 함께 보내요 (한 번에 맞힌 수는 지금 도전의 기록)
+  const stat = (done, a, b, i) => (done ? (passed(i) ? '완료' : '재도전 필요') : a ? `진행 ${a}/${b}` : '-') + (tries(i) ? ` (재도전 ${tries(i)}번)` : '');
+  const posCnt = POS.filter((p, i) => posOk(i)).length;
+  const wrong = [];
+  POS.forEach(([n], i) => { const r = state.m2.s[i]; if (r && r.no.length) wrong.push(`${n}: ${r.no.map(j => SHAPES[j][1]).join(', ')}`); });
+  if (state.m3.pred && state.m3.pred.no.length) wrong.push('예측: ' + state.m3.pred.no.map(j => M3P.o[j]).join(', '));
+  return [
+    stat(MISSIONS[0].done(), okCount(M1Q, state.m1.q), M1Q.length, 0), stat(MISSIONS[1].done(), posCnt + okCount(M2Q, state.m2.q), 8 + M2Q.length, 1),
+    stat(MISSIONS[2].done(), okCount(M3Q, state.m3.q), M3Q.length, 2), stat(MISSIONS[3].done(), okCount(QUIZ, state.m4.q), QUIZ.length, 3),
+    `${firstOk(M1Q, state.m1.q)}/${M1Q.length}`, `${posFirst() + firstOk(M2Q, state.m2.q)}/${8 + M2Q.length}`, `${firstOk(M3Q, state.m3.q)}/${M3Q.length}`, `${firstOk(QUIZ, state.m4.q)}/${QUIZ.length}`, wrong.join(' / ')
+  ];
+}
+async function sync(force) {
+  if (!CONFIG.SUBMIT_URL || !state.code || !state.num) return null;
+  const vals = progressVals(), sig = [state.num, state.name].concat(vals).join('|');
+  if (!force && sig === state.sentSig) return null;
+  try {
+    if (!(await hello())) return { ok: false, error: 'server' };
+    const out = await post({ lesson: CONFIG.LESSON, action: 'save', code: state.code, num: state.num, name: state.name, cols: COLS, vals });
+    if (out.ok) { state.sentSig = sig; state.sent = true; try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+    return out;
+  } catch (err) { return { ok: false, error: 'net' }; }
+}
+async function submit() {
+  if (!state.code) { ui.submitMsg = '수업 코드 없이 시작해서 보낼 수 없어요. 처음 화면에서 다시 시작해 주세요.'; render(); return; }
+  ui.submitMsg = '보내는 중…'; render();
+  const out = await sync(true);
+  ui.submitMsg = out && out.ok ? '✔ 선생님께 보냈어요.' : out && out.error === 'code' ? '수업 코드가 맞지 않아요.' : out && out.error === 'server' ? '아직 결과를 받을 준비가 안 됐어요. 선생님께 알려 주세요. (이 화면을 캡처해서 내도 돼요)' : '인터넷 연결을 확인해 주세요. 계속 안 되면 이 화면을 캡처해서 내세요.';
+  render();
+}
+
+enter('intro');
+</script>
+</body>
+</html>
