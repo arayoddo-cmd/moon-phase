@@ -1132,10 +1132,10 @@ const MISSIONS = [
   { v: 'm3', t: '임무 3. 위상 순서와 저녁 하늘', d: '해가 진 직후 달의 위치와 모양을 예측하고 확인한 뒤, 하루 동안 뜨고 지는 모습과 비교하고 위상 변화 순서와 날짜를 정리해요.', done: () => m3PredOk() && qDone(M3Q, state.m3.q), score: () => [firstOk(M3Q, state.m3.q), M3Q.length] },
   { v: 'm4', t: '임무 4. 확인 퀴즈', d: `형성평가 유형 ${QUIZ.length}문제로 배운 내용을 정리해요.`, done: () => qDone(QUIZ, state.m4.q), score: () => [firstOk(QUIZ, state.m4.q), QUIZ.length] }
 ];
-// 점수(처음 고른 답이 정답인 비율)가 70% 이상이어야 통과해서 다음 임무가 열려요. 못 넘으면 다시 도전해요
-const PASS = 0.7;
+// 점수(처음 고른 답이 정답인 비율)가 임무 1~3은 70%, 임무 4는 60% 이상이어야 통과해서 다음 임무가 열려요. 못 넘으면 다시 도전해요
+const PASS = i => i === 3 ? 0.6 : 0.7; // 임무 1~3은 70%, 임무 4(퀴즈)는 60%
 const pct = i => { const [a, b] = MISSIONS[i].score(); return Math.round(a / b * 100); };
-const passed = i => MISSIONS[i].done() && pct(i) >= PASS * 100;
+const passed = i => MISSIONS[i].done() && pct(i) >= PASS(i) * 100;
 const tries = i => state[MISSIONS[i].v].tries || 0;
 // 선생님 시험 모드: 학번 00000으로 들어오면 모든 임무와 게임이 처음부터 열려 있어요
 const tester = () => state.num === '00000';
@@ -1200,7 +1200,7 @@ function checklist(m) {
 }
 function doneBox(i) {
   const next = MISSIONS[i + 1], [a, b] = MISSIONS[i].score(), p = pct(i), sc = `점수 ${a}/${b} (${p}%)`;
-  if (!passed(i)) return `<div class="done retry"><b>🔁 ${sc}</b><span>처음 고른 답이 정답인 비율이 <b>70% 이상</b>이어야 다음 임무로 갈 수 있어요. 해설을 다시 읽고 도전해요!</span><button class="btn small" data-act="retry" data-v="${MISSIONS[i].v}">🔁 다시 도전하기</button></div>`;
+  if (!passed(i)) return `<div class="done retry"><b>🔁 ${sc}</b><span>처음 고른 답이 정답인 비율이 <b>${PASS(i) * 100}% 이상</b>이어야 다음 임무로 갈 수 있어요. 해설을 다시 읽고 도전해요!</span><button class="btn small" data-act="retry" data-v="${MISSIONS[i].v}">🔁 다시 도전하기</button></div>`;
   return `<div class="done"><b>🏅 ${MISSIONS[i].t} 통과! · ${sc}</b>${next ? `<button class="btn small" data-act="enter" data-v="${next.v}">다음 임무 →</button>` : '<button class="btn small" data-act="enter" data-v="game">🎮 마지막 도전 게임 →</button><button class="btn ghost small" data-act="enter" data-v="cert">결과 보기</button>'}</div>`;
 }
 function mTop(title) {
@@ -1245,7 +1245,7 @@ function viewClass() {
 function viewMap() {
   const n = MISSIONS.filter((m, i) => passed(i)).length;
   return `<div class="top"><span class="title" style="font-size:26px">🧑‍🚀 탐사 임무</span><span class="pill">진행 <b>${n}/4</b></span><span class="grow"></span><span class="pill">🧑‍🚀 <b>${esc(state.num)} ${esc(state.name)}</b></span><button class="btn ghost small" data-act="enter" data-v="cert">📋 결과</button><button class="btn ghost small" data-act="enter" data-v="intro">← 처음 화면</button></div>
-${tester() ? '<div class="done" style="margin:0 0 14px"><b>🧪 선생님 시험 모드 (학번 00000) · 모든 임무와 게임이 열려 있어요.</b><span class="muted">시트 보내기 시험은 📋 결과에서</span></div>' : ''}<div class="mcards">${MISSIONS.map((m, i) => { const ok = unlocked(i), d = passed(i), re = m.done() && !d; return `<section class="panel mcard${ok ? '' : ' lock'}"><span class="n">${d ? `<span class="st-done">✔ 통과 ${pct(i)}%</span>` : re ? `<span class="st-re">🔁 재도전 필요 (${pct(i)}%)</span>` : ok ? '도전 가능' : '🔒 앞 임무를 70% 이상으로 통과해요'}</span><h3>${m.t}</h3><p class="muted">${m.d}</p><div class="row">${re ? `<button class="btn small" data-act="retry" data-v="${m.v}">🔁 다시 도전하기</button>` : `<button class="btn${d ? ' ghost' : ''} small" data-act="enter" data-v="${m.v}"${ok ? '' : ' disabled'}>${d ? '다시 보기' : '시작'}</button>`}</div></section>`; }).join('')}</div>
+${tester() ? '<div class="done" style="margin:0 0 14px"><b>🧪 선생님 시험 모드 (학번 00000) · 모든 임무와 게임이 열려 있어요.</b><span class="muted">시트 보내기 시험은 📋 결과에서</span></div>' : ''}<div class="mcards">${MISSIONS.map((m, i) => { const ok = unlocked(i), d = passed(i), re = m.done() && !d; return `<section class="panel mcard${ok ? '' : ' lock'}"><span class="n">${d ? `<span class="st-done">✔ 통과 ${pct(i)}%</span>` : re ? `<span class="st-re">🔁 재도전 필요 (${pct(i)}%)</span>` : ok ? '도전 가능' : '🔒 앞 임무를 통과하면 열려요'}</span><h3>${m.t}</h3><p class="muted">${m.d}</p><div class="row">${re ? `<button class="btn small" data-act="retry" data-v="${m.v}">🔁 다시 도전하기</button>` : `<button class="btn${d ? ' ghost' : ''} small" data-act="enter" data-v="${m.v}"${ok ? '' : ' disabled'}>${d ? '다시 보기' : '시작'}</button>`}</div></section>`; }).join('')}</div>
 ${(() => { const ok = gameOpen(), g = state.game; return `<section class="panel mcard${ok ? '' : ' lock'}" style="margin-top:14px"><span class="n">${ok ? (g.plays ? `🏆 내 최고 ${g.best}점 · ${g.plays}번 도전` : '도전 가능') : '🔒 임무 4를 통과하면 열려요'}</span><h3>🎮 마지막 도전 · 달 카드와 지구 포대</h3><p class="muted">① 달 카드 뒤집기(모양 ↔ 이름) → ②~④ 지구 포대: 이 모양의 달을 쏴라! (햇빛 오른쪽 → 왼쪽 → 섞어서) → ⑤ 이 날짜의 달을 쏴라! 할 때마다 바뀌고, 게임 점수는 임무 성적과 따로 기록돼요.</p><div class="row"><button class="btn small" data-act="enter" data-v="game"${ok ? '' : ' disabled'}>${g.plays ? '다시 도전' : '시작'}</button></div></section>`; })()}
 ${MISSIONS.every((m, i) => passed(i)) ? '<div class="done"><b>🎉 모든 임무를 마쳤어요!</b><button class="btn small" data-act="enter" data-v="game">🎮 마지막 도전 게임 →</button><button class="btn ghost small" data-act="enter" data-v="cert">결과 보기</button></div>' : ''}`;
 }
