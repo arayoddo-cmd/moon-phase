@@ -104,6 +104,13 @@ button.blank:not(.show){color:transparent}
 .concept.big h3{font-size:clamp(24px,2.6vw,34px)}
 .concept.big li{font-size:clamp(22px,2.4vw,32px);margin:12px 0}
 .concept.big .ask{font-size:clamp(19px,1.9vw,26px)}
+button.blank:not(.show){color:#ffcf5aa8;letter-spacing:.12em}
+.concept.big h3{font-size:clamp(30px,3.2vw,48px)}
+.concept.big li{font-size:clamp(28px,3vw,46px);margin:14px 0;line-height:1.9}
+.concept.big .ask{font-size:clamp(24px,2.4vw,36px);line-height:1.6}
+.concept.big .note{font-size:clamp(18px,1.6vw,24px)}
+.concept.big .blank{min-width:1.6em;padding:0 .3em}
+.concept.big ol{font-size:clamp(28px,3vw,46px);padding-left:1.6em}
 .ask{background:#1c2a5c;border-left:4px solid var(--accent);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:15px}
 .ask b{color:var(--accent)}
 
@@ -1210,9 +1217,11 @@ ${grp('빠르기', 'spd', [[0, '느리게'], [1, '보통'], [2, '빠르게']], v
   if (togs && togs.length && S.cam !== 'earth') h += `<div class="ctrl">${grp('보기', 'tog', togs.map(k => [k, TOGN[k]]), k => S[k])}</div>`;
   return h;
 }
-function fill(str, key) {
-  let n = 0;
-  return str.replace(/\[(.+?)\]/g, (m, w) => { const k = key + '-' + (n++), show = ui.rev[k]; return `<button class="blank${show ? ' show' : ''}" data-act="reveal" data-k="${k}">${w}</button>`; });
+/* 빈칸 힌트: 한글은 초성만, 숫자·영문은 ? 로 보여 줘요. (답을 누르면 원래 글자) */
+const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+const cho = w => w.replace(/<[^>]*>/g, '').replace(/[가-힣]/g, c => CHO[Math.floor((c.charCodeAt(0) - 0xAC00) / 588)]).replace(/[0-9]+(\.[0-9]+)?/g, '?').replace(/[A-Za-z]+/g, '?');
+function fill(str, key) {  let n = 0;
+  return str.replace(/\[(.+?)\]/g, (m, w) => { const k = key + '-' + (n++), show = ui.rev[k]; return `<button class="blank${show ? ' show' : ''}" data-act="reveal" data-k="${k}">${show ? w : cho(w)}</button>`; });
 }
 function qList(m, locked) {
   const [qs, recf] = QS[m], rec = recf();
