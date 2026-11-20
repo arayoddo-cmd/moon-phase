@@ -117,6 +117,13 @@ button.blank:not(.show){color:#ffcf5aa8;letter-spacing:.12em}
 .concept .ex{color:#c4b0ff}
 .concept .wsk{color:#fff}
 .concept.big .leg{font-size:clamp(20px,1.8vw,28px)}
+.grank{margin:16px auto 4px;max-width:440px;text-align:left;background:#141f48;border:1px solid #ffcf5a55;border-radius:14px;padding:12px 16px}
+.grank h3{margin:0 0 8px;font-size:18px;text-align:center}.grank h3 small{font-size:13px;color:var(--muted);font-weight:400}
+.grank ol{list-style:none;margin:0;padding:0}
+.grank li{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:10px;font-size:17px}
+.grank li span{width:34px;text-align:center;font-size:22px}.grank li b{flex:1}.grank li em{font-style:normal;color:#ffcf5a;font-weight:700}
+.grank li.me{background:#ffcf5a22;outline:1px solid #ffcf5a88}
+.grank p{margin:10px 0 0;text-align:center;font-size:17px}.grank .rk{color:#ffcf5a;font-size:24px}
 .ask{background:#1c2a5c;border-left:4px solid var(--accent);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:15px}
 .ask b{color:var(--accent)}
 
@@ -1647,11 +1654,11 @@ ${G.stage === 1 ? `<ul class="glegend"><li>🚀 지구 위의 <b>포대</b>가 �
 ${G.stage === 2 ? `<ul class="glegend"><li>☀ 햇빛이 <b>왼쪽</b>에서 와요. 이제는 <b>왼쪽</b>에 있는 달이 삭, 오른쪽 끝의 달이 보름달이에요.</li><li>🌙 공전 방향은 그대로 시계 반대 방향! 삭에서 시계 반대 방향으로 가며 초승달 → 상현달 → 보름달 …</li></ul>` : ''}
 ${G.stage === 3 ? `<ul class="glegend"><li>☀ 목표마다 햇빛 방향이 <b>바뀔 수 있어요</b>. 바뀌면 화면에 크게 알려 주고, 잠깐 쏠 수 없어요.</li><li>🪨 소행성이 조금 더 많아요!</li></ul>` : ''}
 ${G.stage === 4 ? `<ul class="glegend"><li>🔄 달들이 공전 방향(시계 반대 방향)으로 돌아요. 자리가 바뀌면 지구에서 보이는 모양도 바뀌어요.</li><li>🎯 그 날짜의 자리에 <b>지금</b> 와 있는 달을 쏴요. 햇빛 방향도 확인!</li><li>🪨 소행성이 더 많고 빨라요!</li></ul>` : ''}
-<div class="row" style="margin-top:12px"><button class="btn" data-act="gq">시작 ▶</button></div>
+<div class="row" style="margin-top:12px"><button class="btn" data-act="gq">시작 ▶</button></div>${G.stage === 0 ? rankBox() : ''}
 ${tester() ? `<div class="row" style="margin-top:14px;padding-top:12px;border-top:1px dashed #8886;align-items:center"><span class="muted">🔧 선생님 확인용 · 바로 가기</span>${GST.map((x, i) => `<button class="btn ghost" data-act="gjump" data-v="${i}"${i === G.stage ? ' disabled' : ''}>${i + 1}단계</button>`).join('')}</div>` : ''}</section>`;
   } else if (G.phase === 'win') {
     body = `<section class="panel" style="max-width:720px;text-align:center"><h2 class="gq">🏆 모든 단계를 마쳤어요!</h2><div class="gbig">${G.score}점</div>
-<p class="lead">지구 포대 목표 ${G.total}개 중 <b>${G.hits}개</b> 명중 (성공률 ${G.rate}%) · 최대 ${G.maxStreak}연속 · ${G.newBest ? '🎉 내 최고 기록이에요!' : `내 최고 기록 ${state.game.best}점`}</p>
+<p class="lead">지구 포대 목표 ${G.total}개 중 <b>${G.hits}개</b> 명중 (성공률 ${G.rate}%) · 최대 ${G.maxStreak}연속 · ${G.newBest ? '🎉 내 최고 기록이에요!' : `내 최고 기록 ${state.game.best}점`}</p>${rankBox()}
 <div class="fb ex" style="text-align:left">💡 달은 언제나 햇빛 쪽 반이 밝지만, 지구에서는 지구를 향한 반만 보여요. 그래서 달이 공전하며 자리가 바뀌면 지구에서 보이는 모양(위상)이 삭 → 초승달 → 상현달 → 보름달(망) → 하현달 → 그믐달로 바뀌어요.</div>
 <div class="row" style="justify-content:center;margin-top:12px"><button class="btn" data-act="gstart">🔁 다시 도전</button><button class="btn ghost" data-act="enter" data-v="map">← 임무 목록</button></div>
 <p class="note">${CONFIG.SUBMIT_URL && state.code ? '최고 점수와 최고 성공률은 선생님 화면의 반별 순위·반 대항 성공률에 올라가요.' : ''}</p></section>`;
@@ -1671,6 +1678,26 @@ async function syncGame() {
   if (!CONFIG.SUBMIT_URL || !state.code || !state.num) return;
   const g = state.game;
   try { if (await hello()) await post({ lesson: CONFIG.LESSON + ' 게임', action: 'save', code: state.code, num: state.num, name: state.name, cols: GCOLS, vals: [g.best, g.plays, g.last, g.clear, g.rate == null ? '' : g.rate] }); } catch (err) {}
+  loadRank();
+}
+// 우리 반 게임 순위 (최고 점수 기준): 1~3위와 내 순위. Apps Script가 순위 기능이 있는 버전일 때만 보여요
+async function loadRank() {
+  if (!CONFIG.SUBMIT_URL || !state.code || !state.num) return;
+  try {
+    if (!(await hello()) || !ui.rankOk) return;
+    const out = await post({ lesson: CONFIG.LESSON + ' 게임', action: 'rank', code: state.code, num: state.num, name: state.name, by: '최고 점수' });
+    if (!out || !out.ok) return;
+    ui.rank = out;
+    // 게임을 하는 중에는 화면을 다시 그리지 않아요 (시작 화면·결과 화면에서만)
+    if (state.view === 'game' && G && (G.phase === 'intro' || G.phase === 'win')) render();
+  } catch (err) {}
+}
+function rankBox() {
+  const R = ui.rank; if (!R || !R.total) return '';
+  const medal = ['🥇', '🥈', '🥉'];
+  const top = R.top.length ? R.top.map(t => `<li${t.rank === R.rank && t.name === state.name ? ' class="me"' : ''}><span>${medal[t.rank - 1] || t.rank + '위'}</span><b>${esc(t.name)}</b><em>${t.s}점</em></li>`).join('') : '<li class="muted">아직 점수가 있는 친구가 없어요</li>';
+  const me = R.rank ? `나는 우리 반 <b>${R.total}명</b> 중 <b class="rk">${R.rank}위</b>${R.rank <= 3 ? ' 🎉' : ''}` : '내 점수를 보내는 중이에요…';
+  return `<div class="grank"><h3>🏆 우리 반 순위 <small>(최고 점수 기준)</small></h3><ol>${top}</ol><p>${me}</p></div>`;
 }
 // 교사 화면: 반 대항 성공률 + 반별 게임 최고 점수
 function gameBox(T, cls, clsName) {
@@ -1779,7 +1806,7 @@ function enter(v) {
   const i = MISSIONS.findIndex(m => m.v === v);
   if (i > 0 && !unlocked(i)) v = 'map';
   if (v === 'game' && !gameOpen()) v = 'map';
-  gStop(); if (v === 'game') gNew();
+  gStop(); if (v === 'game') { gNew(); loadRank(); }
   state.view = v; ui.fb = {}; ui.submitMsg = '';
   if (CHECK[v]) CHECK[v].forEach(([k]) => { delete Stage.watch[k]; });
   if (v === 'intro') { Stage.set(Object.assign({}, BASE, { view: 'orbit', playing: true })); Stage.preset(); }
@@ -1903,7 +1930,7 @@ async function post(body) {
 async function hello() {
   if (ui.server != null) return ui.server;
   const out = await post({ action: 'hello' });
-  ui.server = !!(out && out.lessons);
+  ui.server = !!(out && out.lessons); ui.rankOk = !!(out && out.rank);
   return ui.server;
 }
 const COLS = ['임무 1 달의 공전', '임무 2 모형 관찰', '임무 3 순서와 저녁 하늘', '임무 4 확인 퀴즈', '공전 문제 (한 번에)', '모형 관찰 (한 번에)', '순서·저녁 하늘 (한 번에)', '확인 퀴즈 (한 번에)', '틀린 답'];
