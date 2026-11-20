@@ -198,6 +198,18 @@ details.tip ol{margin:8px 0 0 20px;padding:0}details.tip li{margin:5px 0}
 /* 마지막 게임: 달 카드 뒤집기 + 지구 포대 */
 .ghud{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .ghud .pill{font-size:16px;padding:6px 14px}
+.lvls{display:grid;gap:10px;margin:10px 0}
+.lvl{text-align:left;background:var(--chip,#1c2550);color:inherit;font:inherit;border:2px solid transparent;border-radius:14px;padding:12px 16px;display:flex;flex-direction:column;gap:2px;cursor:pointer}
+.lvl.on{border-color:var(--accent)}.lvl:disabled{opacity:.45;cursor:not-allowed}.lvl span{font-size:14px;color:var(--muted)}
+.ghud .pill.hot{background:#ff5d6c33;outline:1px solid #ff8f9a}
+.gteam{font-size:16px;color:#9ff0d0;margin:8px 0 0}
+.team .trow{display:grid;grid-template-columns:110px 1fr 170px 80px;gap:10px;align-items:center;margin:8px 0;font-size:16px}
+.team .trow.big{grid-template-columns:140px 1fr 210px 90px;font-size:24px;margin:12px 0 18px}
+.team .tg{height:18px;background:#ffffff14;border-radius:10px;overflow:hidden}.team .trow.big .tg{height:34px;border-radius:17px}
+.team .tg i{display:block;height:100%;background:linear-gradient(90deg,#3dd2ff,#5fe0a0);transition:width .6s}
+.team .tg.full i{background:linear-gradient(90deg,#ffcf5a,#ff8fb0)}
+.team small{color:var(--muted)}
+@media (max-width:700px){.team .trow,.team .trow.big{grid-template-columns:1fr;gap:4px}}
 .gwrap{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,1fr);gap:14px;align-items:start}
 .gwrap>*{min-width:0}
 @media (max-width:820px){.gwrap{grid-template-columns:1fr}}
@@ -1159,7 +1171,7 @@ const FIGS = {
 
 /* ───────── 저장 ───────── */
 const KEY = 'moon-phase-v1';
-const fresh = () => ({ view: 'intro', num: '', name: '', code: '', m1: { seen: {}, q: {} }, m2: { cur: 0, s: {}, seen: {}, q: {} }, m3: { seen: {}, q: {}, pred: null }, m4: { q: {} }, game: { best: 0, plays: 0, last: 0, clear: 0, rate: null }, sentSig: '', sent: false });
+const fresh = () => ({ view: 'intro', num: '', name: '', code: '', m1: { seen: {}, q: {} }, m2: { cur: 0, s: {}, seen: {}, q: {} }, m3: { seen: {}, q: {}, pred: null }, m4: { q: {} }, game: { best: 0, plays: 0, last: 0, clear: 0, rate: null, sb: [0, 0, 0, 0, 0, 0], hits: 0 }, sentSig: '', sent: false });
 let state = fresh();
 try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.m1) state = Object.assign(fresh(), s, { view: 'intro' }); } catch (e) {}
 const ui = { tab: 0, rev: {}, fb: {}, server: null, teacher: null, submitMsg: '' };
@@ -1379,11 +1391,11 @@ ${T.msg ? `<p class="fb ${T.msg.startsWith('불러') ? '' : 'bad'}">${T.msg}</p>
 ${list.length ? list.map(r => `<tr>${order.map(i => `<td>${i === iTime ? `<small>${esc(r[i])}</small>` : cell(r[i])}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${order.length}" class="muted" style="text-align:center">아직 참여한 학생이 없어요.</td></tr>`}
 </tbody></table></div><p class="note">"한 번에"는 처음 고른 답이 정답이었던 문제 수예요. 학번 앞 3자리로 반을 나눠요. (예: 10312 → 1학년 3반)</p></section>${gameBox(T, (r, i) => { const n = String(r[i] || ''); return n.length > 2 ? n.slice(0, -2) : ''; }, clsName)}`;
 }
-async function teacherLoad() {
+async function teacherLoad(silent) {
   const T = ui.teacher, inp = document.getElementById('tcode');
   if (inp) T.code = inp.value.trim();
   if (!T.code) { T.msg = '교사 코드를 입력해 주세요.'; render(); return; }
-  T.msg = '불러오는 중…'; render();
+  if (!silent) { T.msg = '불러오는 중…'; render(); }
   try {
     if (!(await hello())) { T.msg = 'Apps Script가 아직 예전 버전이에요. 일주운동 폴더의 apps-script.gs로 바꾸고 새 버전으로 배포해 주세요.'; render(); return; }
     const out = await post({ lesson: CONFIG.LESSON, action: 'list', teacher: T.code });
@@ -1397,29 +1409,33 @@ async function teacherLoad() {
 }
 
 /* ───────── 마지막 게임: 달 카드와 지구 포대 (임무 4를 통과하면 열려요) ─────────
-   1단계 달 카드 뒤집기: 달 사진 ↔ 이름 6쌍(삭·초승달·상현달·보름달(망)·하현달·그믐달). 적게 뒤집을수록 점수가 커요.
-   2~4단계 지구 포대(30·30·45초): 지구에서 이렇게 보이는 달(사진)을 공전 궤도 8자리 중에서 찾아 쏴요. 햇빛 오른쪽 → 왼쪽 → 섞어서.
-   5단계 지구 포대(45초): 음력 날짜를 보고 쏴요. 달들이 궤도를 따라 돌아서 지금 그 날짜 자리에 온 달을 쏴야 해요.
+   단계를 골라서 해요(깬 단계 다음까지 열려요). 각 단계 60초.
+   1단계 스피드 카드: 1라운드 달 사진 ↔ 이름, 2라운드 달 사진 ↔ 음력 날짜 (다 맞히면 다시 섞여서 계속). 두 라운드를 다 맞히면 성공.
+   2~4단계 지구 포대: 지구에서 이렇게 보이는 달(사진)을 공전 궤도 8자리 중에서 찾아 쏴요. 햇빛 오른쪽 → 왼쪽 → 섞어서.
+   5단계 지구 포대: 음력 날짜를 보고 쏴요. 달들이 궤도를 따라 돌아서 지금 그 날짜 자리에 온 달을 쏴야 해요.
+   🔥 무한 포대(5단계를 깨면 열려요): 모양·날짜 섞어서, 목숨 3개, 5개 맞힐 때마다 달이 빨리 돌고 소행성이 많아져요.
    포대는 지구 위에 있어요: '지구에서 달을 바라보는 방향 = 쏘는 방향'. 판의 달은 우주에서 본 모습(햇빛 쪽 반이 밝음)이라
-   겉모습이 아니라 자리로 판단해요. 햇빛은 목표마다 오른쪽 또는 왼쪽에서 와요(교과서 문제처럼).
-   소행성이 여러 개 지나가며 포탄을 막아요(막히면 포탄 한 발을 잃어요). 목표마다 3발, 맞히면 곧바로 다음 목표.
-   점수는 임무 성적과 따로 '달의 위상 게임 현황' 탭에 기록해요. */
+   겉모습이 아니라 자리로 판단해요. 소행성에 막히면 포탄 한 발을 잃어요. 목표마다 3발.
+   연속으로 맞히면 콤보(3연속 ×2, 6연속 ×3), 목표가 나오고 2초 안에 첫 발로 맞히면 ⚡ 번개 명중(+50).
+   점수는 임무 성적과 따로 '달의 위상 게임 현황' 탭에, 명중 수는 교사 화면 합동 미션 게이지에 모여요. */
 const shuf = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const $id = id => document.getElementById(id);
 const angD = (a, b) => Math.abs(((a - b) % 360 + 540) % 360 - 180); // 두 각의 차이 (0~180)
 const MP = { CX: 260, CY: 230, R: 165, rE: 28, rM: 22, shots: 3, bullet: 650 };
-// 단계별 설정: 시간(T초), 목표 종류, 햇빛(R 오른쪽 고정 / L 왼쪽 고정 / M 섞임), 달 도는 빠르기, 허용 오차, 소행성 최대 수·나오는 간격·빠르기
-const SC = [null,
-  { T: 30, list: 'shape', sun: 'R', spin: 0, tol: 22.5, amax: 6, aint: .45, asp: 90 },
-  { T: 30, list: 'shape', sun: 'L', spin: 0, tol: 22.5, amax: 6, aint: .45, asp: 90 },
-  { T: 45, list: 'shape', sun: 'M', spin: 0, tol: 22.5, amax: 7, aint: .38, asp: 100 },
-  { T: 45, list: 'date', sun: 'M', spin: 12, tol: 30, amax: 9, aint: .3, asp: 120 }];
-const SCg = () => SC[G.stage];
+// 단계별 설정: 시간(T초), 목표 종류, 햇빛(R 오른쪽 고정 / L 왼쪽 고정 / M 섞임), 달 도는 빠르기, 소행성 최대 수·나오는 간격·빠르기, 성공 기준
+const SC = [{ T: 60, card: true },
+  { T: 60, list: 'shape', sun: 'R', spin: 0, amax: 6, aint: .45, asp: 90, goal: 10 },
+  { T: 60, list: 'shape', sun: 'L', spin: 0, amax: 6, aint: .45, asp: 90, goal: 10 },
+  { T: 60, list: 'shape', sun: 'M', spin: 0, amax: 7, aint: .38, asp: 100, goal: 9 },
+  { T: 60, list: 'date', sun: 'M', spin: 12, amax: 9, aint: .3, asp: 120, goal: 8 },
+  { T: 0, list: 'mix', sun: 'M', spin: 6, amax: 6, aint: .42, asp: 100, endless: true }];
+const TOL = { shape: 22.5, date: 30 };
+const SCg = () => SC[G.lv];
 const mpt = (deg, r) => [MP.CX + r * Math.cos(deg * D2R), MP.CY - r * Math.sin(deg * D2R)];
 // 게임 그림에서는 초승달·그믐달이 너무 가늘지 않게 조금 두껍게 그려요
 const thick = th => { const n = norm(th); return n > 5 && n < 62 ? 62 : n > 298 && n < 355 ? 298 : n; };
 const gIcon = (th, size) => phaseIcon(thick(th), size);
-// 2단계 목표(모양 6가지: 망간의 달은 내지 않아요), 3단계 목표(음력 날짜). 각은 삭 자리(태양 쪽)에서 공전한 각
+// 목표(모양 6가지: 망간의 달은 내지 않아요), 목표(음력 날짜). 각은 삭 자리(태양 쪽)에서 공전한 각
 const T_SHAPE = [[0, '삭'], [45, '초승달'], [90, '상현달'], [180, '보름달(망)'], [270, '하현달'], [315, '그믐달']];
 const T_DATE = [[0, '음력 1일'], [30, '음력 2~3일'], [90, '음력 7~8일'], [180, '음력 15일'], [270, '음력 22~23일'], [330, '음력 27~28일']];
 // 목표 자리의 대표 모양과 음력 날짜 (학습지 표와 같게)
@@ -1437,69 +1453,84 @@ const HINT = {
   330: '음력 27~28일 그믐달은 다시 태양 쪽으로 가까워진 자리예요.'
 };
 const GST = [
-  { t: '1단계 · 달 카드 뒤집기', d: '카드를 두 장씩 뒤집어 <b>달 모양 사진</b>과 <b>이름</b>의 짝을 찾아요. 적게 뒤집을수록 점수가 커요.' },
-  { t: '2단계 · 지구 포대: 햇빛이 오른쪽에서 →', d: `<b>${SC[1].T}초</b> 동안 목표가 계속 나와요. 햇빛은 언제나 <b>오른쪽</b>에서 와요. 지구에서 <b>이렇게 보이는 달</b>은 궤도의 어디에 있을까요? 빨리, 많이 맞혀요!` },
-  { t: '3단계 · 지구 포대: ← 햇빛이 왼쪽에서', d: `이번에는 햇빛이 언제나 <b>왼쪽</b>에서 와요! 태양 쪽이 바뀌면 삭·보름달의 자리도 바뀌어요. <b>${SC[2].T}초</b> 동안 많이 맞혀요.` },
-  { t: '4단계 · 지구 포대: 햇빛이 왔다 갔다!', d: `이제 햇빛이 <b>오른쪽</b>에서 오기도, <b>왼쪽</b>에서 오기도 해요. 목표가 나올 때마다 햇빛 방향부터 확인해요! (<b>${SC[3].T}초</b>)` },
-  { t: '5단계 · 지구 포대: 이 날짜의 달을 쏴라!', d: `<b>${SC[4].T}초</b> 동안 <b>음력 날짜</b>가 계속 나와요. 달들이 궤도를 따라 <b>돌고</b>, 햇빛 방향도 바뀌어요! 지금 그 날짜 자리에 온 달을 쏴요.` }
+  { t: '1단계 · 스피드 카드', d: '60초 안에 짝을 찾아요! 1라운드는 <b>달 사진 ↔ 이름</b>, 2라운드는 <b>달 사진 ↔ 음력 날짜</b>. 연속으로 맞히면 콤보! 두 라운드를 다 맞히면 성공.' },
+  { t: '2단계 · 지구 포대: 햇빛이 오른쪽에서 →', d: '60초 동안 목표가 계속 나와요. 햇빛은 언제나 <b>오른쪽</b>에서 와요. 지구에서 <b>이렇게 보이는 달</b>은 궤도의 어디에 있을까요? 10개 이상 맞히면 성공.' },
+  { t: '3단계 · 지구 포대: ← 햇빛이 왼쪽에서', d: '이번에는 햇빛이 언제나 <b>왼쪽</b>에서 와요! 태양 쪽이 바뀌면 삭·보름달의 자리도 바뀌어요. 60초 동안 10개 이상 맞히면 성공.' },
+  { t: '4단계 · 지구 포대: 햇빛이 왔다 갔다!', d: '햇빛이 <b>오른쪽</b>에서 오기도, <b>왼쪽</b>에서 오기도 해요. 목표가 나올 때마다 햇빛 방향부터 확인해요! 60초 동안 9개 이상 맞히면 성공.' },
+  { t: '5단계 · 지구 포대: 이 날짜의 달을 쏴라!', d: '<b>음력 날짜</b>가 계속 나와요. 달들이 궤도를 따라 <b>돌고</b>, 햇빛 방향도 바뀌어요! 지금 그 날짜 자리에 온 달을 쏴요. 60초 동안 8개 이상 맞히면 성공.' },
+  { t: '🔥 무한 포대', d: '시간 제한 없이 목숨 3개! 모양과 날짜 문제가 섞여 나와요. 목표를 놓치면(포탄 3발을 다 쓰면) 목숨이 하나 줄고, 5개 맞힐 때마다 달이 더 빨리 돌고 소행성이 많아져요.' }
 ];
-const GCOLS = ['최고 점수', '도전 횟수', '마지막 점수', '모두 성공', '최고 성공률'];
+const GCOLS = ['최고 점수', '도전 횟수', '마지막 점수', '깬 단계', '최고 성공률', '1단계 최고', '2단계 최고', '3단계 최고', '4단계 최고', '5단계 최고', '무한 최고', '명중 수'];
+const gMul = c => c >= 6 ? 3 : c >= 3 ? 2 : 1;
 let G = null, gRaf = 0, gTO = 0;
-function gNew() {
-  gStop();
-  G = { stage: 0, phase: 'intro', score: 0, hits: 0, total: 0, streak: 0, maxStreak: 0, rate: null, cards: null };
-}
-function gStop() { cancelAnimationFrame(gRaf); clearTimeout(gTO); }
-function gQ() {
-  gStop();
-  if (G.stage === 0) {
-    G.cards = shuf(PH6.flatMap(([th, nm, d], k) => [{ k, pic: true, th, nm, d }, { k, pic: false, th, nm, d }])).map(c => Object.assign(c, { up: false, ok: false }));
-    G.flips = 0; G.lock = false; G.msg = null; G.phase = 'play'; render(); return;
+// 예전 기록(한 줄로 이어 하던 게임)이 남아 있으면 새 게임 기록으로 바꿔요
+function gData() { const g = state.game; if (!g.sb) Object.assign(g, { sb: [0, 0, 0, 0, 0, 0], best: 0, clear: 0, rate: null }); if (g.hits == null) g.hits = 0; return g; }
+function gNew() { gStop(); G = { phase: 'menu' }; }
+function gStop() { cancelAnimationFrame(gRaf); clearTimeout(gTO); gRaf = 0; }
+const gLevel = () => { const g = gData(), open = tester() ? 5 : Math.min(g.clear, 5); return Math.min(ui.gLv == null ? Math.min(open, 4) : ui.gLv, open); };
+function gGo(lv) {
+  gStop(); gData();
+  G = { lv, phase: 'play', score: 0, hits: 0, total: 0, streak: 0, maxStreak: 0, rate: null, t: SC[lv].T, clock: 0, lastT: 0, fx: [], lives: 3, sH: 0, sN: 0, quick: 0, el: 0, lvUp: 0 };
+  if (SC[lv].card) { G.round = 0; G.pairs = 0; newCards(); }
+  else {
+    Object.assign(G, { spin: SC[lv].spin, amax: SC[lv].amax, rot: SC[lv].spin ? Math.random() * 360 : 0, asts: [], astT: .8, bul: null, fb: null, last: null });
+    newTarget();
   }
-  Object.assign(G, { phase: 'play', t: SCg().T, rot: Math.random() * 360, asts: [], astT: .8, bul: null, sH: 0, sN: 0, fb: null, last: null, lastT: 0 });
-  if (!SCg().spin) G.rot = 0;
-  newTarget(); render();
+  render();
 }
-/* 1단계: 카드 */
-function cardBack(c) { return c.pic ? gIcon(c.th, 120) : `<span class="nm">${esc(c.nm)}</span>`; }
+/* 1단계: 스피드 카드 */
+function newCards() {
+  const date = G.round % 2 === 1;
+  G.cards = shuf(PH6.flatMap(([th, nm, d], k) => [{ k, pic: true, th, nm, d }, { k, pic: false, th, nm, d, txt: date ? `음력 ${d}` : nm }])).map(c => Object.assign(c, { up: false, ok: false }));
+  G.lock = false; G.msg = null; G.round++;
+}
+function cardBack(c) { return c.pic ? gIcon(c.th, 120) : `<span class="nm">${esc(c.txt)}</span>`; }
 function flipCard(i) {
-  if (!G || G.stage !== 0 || G.phase !== 'play' || G.lock) return;
+  if (!G || !SC[G.lv].card || G.phase !== 'play' || G.lock) return;
   const c = G.cards[i]; if (!c || c.up || c.ok) return;
   c.up = true; BGM.sfx('tick'); cardDraw();
   const up = G.cards.filter(x => x.up && !x.ok); if (up.length < 2) return;
-  G.flips++;
   const [a, b] = up;
   if (a.k === b.k) {
-    a.ok = b.ok = true; a.up = b.up = false; BGM.sfx('ok');
-    G.msg = { h: `⭕ ${a.nm}`, s: `음력 ${a.d} 무렵의 달이에요.` };
-    cardDraw();
+    a.ok = b.ok = true; a.up = b.up = false; G.pairs++; G.streak++; G.maxStreak = Math.max(G.maxStreak, G.streak);
+    const m = gMul(G.streak), p = 100 * m; G.score += p; BGM.sfx('ok');
+    G.msg = { h: `⭕ ${a.nm} +${p}${m > 1 ? ` (🔥${G.streak}연속 ×${m})` : ''}`, s: `음력 ${a.d} 무렵의 달이에요.` };
     if (G.cards.every(x => x.ok)) {
-      const pts = Math.max(100, 600 - 50 * (G.flips - 6)); G.score += pts;
-      G.msg = { h: `🎉 모두 찾았어요! +${pts}`, s: `${G.flips}번 만에 찾았어요. (가장 적게는 6번)` };
-      gTO = setTimeout(() => { G.phase = 'res'; render(); }, 700);
+      G.score += 200; G.msg = { h: `🎉 ${G.round}라운드 완성! +200`, s: G.round % 2 === 1 ? '다음은 달 사진 ↔ 음력 날짜!' : '다시 섞어서 사진 ↔ 이름!' };
+      G.lock = true; cardDraw(); gTO = setTimeout(() => { newCards(); render(); }, 900); return;
     }
+    cardDraw();
   } else {
-    G.lock = true; BGM.sfx('bad'); [a, b].forEach(x => { x.no = true; }); cardDraw();
-    gTO = setTimeout(() => { a.up = b.up = false; a.no = b.no = false; G.lock = false; cardDraw(); }, 950);
+    G.lock = true; G.streak = 0; BGM.sfx('bad'); [a, b].forEach(x => { x.no = true; }); cardDraw();
+    gTO = setTimeout(() => { a.up = b.up = false; a.no = b.no = false; G.lock = false; cardDraw(); }, 700);
   }
 }
 function cardDraw() {
   G.cards.forEach((c, i) => { const el = $id('cd' + i); if (el) el.className = 'card' + (c.ok ? ' ok' : c.up ? ' up' : '') + (c.no ? ' no' : ''); });
-  const f = $id('gFlips'); if (f) f.textContent = G.flips;
-  const m = $id('gMsg'); if (m) m.innerHTML = G.msg ? `<div class="gres ok"><b>${G.msg.h}</b><span>${G.msg.s}</span></div>` : '<p class="muted">같은 달의 <b>사진</b>과 <b>이름</b>을 찾아요.</p>';
+  const m = $id('gMsg'); if (m) m.innerHTML = G.msg ? `<div class="gres ok"><b>${G.msg.h}</b><span>${G.msg.s}</span></div>` : `<p class="muted">같은 달의 <b>사진</b>과 <b>${G.round % 2 === 1 ? '이름' : '음력 날짜'}</b>을 찾아요.</p>`;
+  hudDraw();
 }
-/* 2·3단계: 지구 포대 */
+function cardTick(now) {
+  if (!G || !SC[G.lv].card || G.phase !== 'play') return;
+  const dt = G.lastT ? Math.min(.05, (now - G.lastT) / 1000) : 0; G.lastT = now;
+  G.t -= dt; timeDraw();
+  if (G.t <= 0) return gEnd();
+  gRaf = requestAnimationFrame(cardTick);
+}
+/* 2~5단계 · 무한: 지구 포대 */
 const sunDir = () => G.sunL ? 180 : 0;
 const moonAng = k => norm(k * 45 + G.rot);                 // 달 k의 궤도 위 각 (화면 기준, 0° = 오른쪽)
 const phaseAt = a => norm(a - sunDir());                    // 그 자리 달의 위상각 (삭 = 태양 쪽)
 function newTarget() {
-  const list = SCg().list === 'shape' ? T_SHAPE : T_DATE;
+  const C = SCg(), kind = C.list === 'mix' ? (Math.random() < .5 ? 'shape' : 'date') : C.list, list = kind === 'shape' ? T_SHAPE : T_DATE;
   let p; do { p = list[Math.floor(Math.random() * list.length)]; } while (G.last && p[0] === G.last[0]);
-  G.last = p; G.tg = { th: p[0], label: p[1] }; G.shots = 0; G.reveal = 0; G.hit = null;
-  const prev = G.sunL, sm = SCg().sun; G.sunL = sm === 'M' ? Math.random() < .5 : sm === 'L';
+  G.last = p; G.tg = { th: p[0], label: p[1], kind }; G.shots = 0; G.reveal = 0; G.hit = null;
+  const prev = G.sunL, sm = C.sun; G.sunL = sm === 'M' ? Math.random() < .5 : sm === 'L';
+  G.tgAt = G.clock || 0;
   // 햇빛 방향이 바뀌면 크게 알리고, 잠깐(0.7초) 쏘지 못하게 해서 확인할 틈을 줘요
-  if (prev != null && prev !== G.sunL) { G.flipAt = G.clock || 0; G.lockUntil = (G.clock || 0) + .7; BGM.sfx('flip'); }
+  if (prev != null && prev !== G.sunL) { G.flipAt = G.clock || 0; G.lockUntil = (G.clock || 0) + .7; G.tgAt = G.lockUntil; BGM.sfx('flip'); }
 }
+function gFx(txt, x, y, c, s) { G.fx.push({ txt, x, y, c, s, t: 0 }); }
 function boardSVG() {
   const f = n => n.toFixed(1), { CX, CY } = MP;
   let s = `<svg id="gB" viewBox="0 0 520 460" role="img" aria-label="북극 위에서 본 달의 공전 궤도와 지구 포대"><rect width="520" height="460" fill="#050914"/>`;
@@ -1516,13 +1547,13 @@ function boardSVG() {
   for (let k = 0; k < 8; k++) s += `<g id="gm${k}"><circle r="${MP.rM}" fill="#2b3150" stroke="#8090c0"/><path class="lit" fill="#ffd84a"/><circle class="hl" r="${MP.rM + 7}" fill="none" stroke-width="4" opacity="0"/></g>`;
   s += `<g id="gCan" transform="translate(${CX} ${CY})"><rect x="0" y="-8" width="52" height="16" rx="5" fill="#c9d3f2" stroke="#3a4a80" stroke-width="2"/></g>`;
   s += `<circle cx="${CX}" cy="${CY}" r="${MP.rE}" fill="#3f86d6"/><path id="gNight" fill="#0b1230" opacity=".75"/>` + svgText(CX, CY + 50, '지구', { s: 16, c: '#7ce0a0' });
-  s += `<g id="gAsts"></g><circle id="gBul" r="7" fill="#ff8a3d" stroke="#fff" stroke-width="2" opacity="0"/>`;
+  s += `<g id="gAsts"></g><circle id="gBul" r="7" fill="#ff8a3d" stroke="#fff" stroke-width="2" opacity="0"/><g id="gFx"></g>`;
   s += `<g id="gFlip" opacity="0"><rect x="110" y="196" width="300" height="68" rx="16" fill="#3a2a06" stroke="#ffcf5a" stroke-width="3"/>${svgText(260, 226, '☀ 햇빛 방향이 바뀌었어요!', { s: 24, c: '#ffe08a' })}<text id="gFlipT" x="260" y="252" fill="#fff" font-size="17" font-family="Do Hyeon, Noto Sans KR, sans-serif" text-anchor="middle"></text></g>`;
   return s + '</svg>';
 }
 const ROCK = '<circle r="20" fill="#6b6258" stroke="#9a9084" stroke-width="2"/><circle cx="-6" cy="-5" r="5" fill="#4f483f"/><circle cx="7" cy="6" r="4" fill="#4f483f"/><circle cx="6" cy="-8" r="2.5" fill="#4f483f"/>';
 function boardDraw() {
-  if (!G || G.stage === 0) return;
+  if (!G || G.lv == null || SC[G.lv].card) return;
   const at = (id, o) => { const e = typeof id === 'string' ? $id(id) : id; if (e) Object.keys(o).forEach(k => e.setAttribute(k, o[k])); }, f = n => n.toFixed(1), r = MP.rM, L = G.sunL;
   // 햇빛이 막 바뀌었으면 1.8초 동안 깜빡이며 알려요
   const sinceFlip = (G.clock || 0) - (G.flipAt == null ? -9 : G.flipAt), flash = sinceFlip < 1.8, blink = flash ? (Math.sin(sinceFlip * 14) > 0 ? 1 : .35) : 1;
@@ -1541,8 +1572,13 @@ function boardDraw() {
   const box = $id('gAsts');
   if (box) { if (box.childElementCount !== G.asts.length) box.innerHTML = G.asts.map(() => `<g>${ROCK}</g>`).join(''); [...box.children].forEach((e, i) => { const A = G.asts[i]; at(e, { transform: `translate(${f(A.x)} ${f(A.y)}) rotate(${f(A.t * 60)})` }); }); }
   if (G.reveal > 0) { const [rx, ry] = mpt(norm(G.tg.th + sunDir()), MP.R); at('gRing', { cx: f(rx), cy: f(ry), opacity: 1 }); } else at('gRing', { opacity: 0 });
-  const tb = $id('gTime'); if (tb) tb.style.width = (Math.max(0, G.t) / SCg().T * 100).toFixed(1) + '%';
-  const tl = $id('gTimeN'); if (tl) tl.textContent = Math.max(0, Math.ceil(G.t));
+  const fx = $id('gFx'); if (fx) fx.innerHTML = G.fx.map(x => `<text x="${f(x.x)}" y="${f(x.y - x.t * 30)}" fill="${x.c}" font-size="${x.s}" opacity="${Math.max(0, 1 - x.t / 1.1).toFixed(2)}" stroke="#050914" stroke-width="4" paint-order="stroke" font-family="Do Hyeon, Noto Sans KR, sans-serif" text-anchor="middle">${x.txt}</text>`).join('');
+  timeDraw();
+}
+function timeDraw() {
+  const C = SCg(), tb = $id('gTime'), tl = $id('gTimeN');
+  if (tb) tb.style.width = C.endless ? (G.lives / 3 * 100) + '%' : (Math.max(0, G.t) / C.T * 100).toFixed(1) + '%';
+  if (tl) tl.textContent = C.endless ? Math.floor(G.el) : Math.max(0, Math.ceil(G.t));
 }
 function spawnAst() {
   // 두 가지 소행성: ① 궤도 안쪽을 가로지르는 것 ② 지구 둘레를 빙빙 돌며 한쪽을 계속 막는 것
@@ -1555,14 +1591,14 @@ function spawnAst() {
   G.asts.push({ x: MP.CX - ux * 330 - uy * d, y: MP.CY - uy * 330 + ux * d, vx: ux * sp, vy: uy * sp, t: 0, life: 7 });
 }
 function tick(now) {
-  if (!G || G.stage === 0 || G.phase !== 'play') return;
-  const dt = G.lastT ? Math.min(.05, (now - G.lastT) / 1000) : 0; G.lastT = now; G.clock = (G.clock || 0) + dt;
-  G.t -= dt; if (G.t <= 0) return stageEnd();
-  const C = SCg();
-  G.rot = norm(G.rot + C.spin * dt);
+  if (!G || SC[G.lv].card || G.phase !== 'play') return;
+  const C = SCg(), dt = G.lastT ? Math.min(.05, (now - G.lastT) / 1000) : 0; G.lastT = now; G.clock = (G.clock || 0) + dt;
+  if (C.endless) G.el += dt; else { G.t -= dt; if (G.t <= 0) return gEnd(); }
+  G.fx.forEach(x => { x.t += dt; }); G.fx = G.fx.filter(x => x.t < 1.1);
+  G.rot = norm(G.rot + G.spin * dt);
   // 소행성: 여러 개가 자주, 빠르게
   G.astT -= dt;
-  if (G.astT <= 0 && G.asts.length < C.amax) { spawnAst(); G.astT = C.aint + Math.random() * .4; }
+  if (G.astT <= 0 && G.asts.length < G.amax) { spawnAst(); G.astT = C.aint + Math.random() * .4; }
   G.asts.forEach(A => {
     A.t += dt;
     if (A.orb) { A.a += A.w * dt; [A.x, A.y] = mpt(A.a, A.rr); }
@@ -1572,10 +1608,14 @@ function tick(now) {
   if (G.bul) {
     G.bul.r += MP.bullet * dt;
     const [bx, by] = mpt(G.bul.a, G.bul.r), A = G.asts.find(A => Math.hypot(bx - A.x, by - A.y) < 26);
-    if (A) { G.asts = G.asts.filter(x => x !== A); G.bul = null; G.shots++; G.streak = 0; BGM.sfx('boom'); G.fb = { ok: false, h: '💥 소행성에 막혔어요! 포탄 −1' }; if (G.shots >= MP.shots) fail(); sideDraw(); }
+    if (A) {
+      G.asts = G.asts.filter(x => x !== A); G.bul = null; G.shots++; BGM.sfx('boom');
+      if (G.streak >= 3) gFx('콤보가 끊겼어요', 260, 120, '#ff8a8a', 20); G.streak = 0; gFx('💥', A.x, A.y, '#fff', 30);
+      G.fb = { ok: false, h: '💥 소행성에 막혔어요! 포탄 −1' }; if (G.shots >= MP.shots) fail(); sideDraw();
+    }
     else if (G.bul.r >= MP.R - MP.rM * .4) shotLand();
   }
-  if (G.reveal > 0) { G.reveal -= dt; if (G.reveal <= 0) { newTarget(); sideDraw(); } }
+  if (G.reveal > 0) { G.reveal -= dt; if (G.reveal <= 0) { if (C.endless && G.lives <= 0) return gEnd(); newTarget(); sideDraw(); } }
   boardDraw();
   gRaf = requestAnimationFrame(tick);
 }
@@ -1584,43 +1624,63 @@ function fire(a) {
   G.aim = a; G.bul = { a, r: MP.rE + 10 }; BGM.sfx('whoosh');
 }
 function fail() {
-  G.sN++; G.total++; G.streak = 0; G.reveal = 1.3;
+  G.sN++; G.total++; if (G.streak >= 3) gFx('콤보가 끊겼어요', 260, 120, '#ff8a8a', 20); G.streak = 0; G.reveal = 1.3;
+  if (SCg().endless) { G.lives--; gFx(G.lives > 0 ? `💔 목숨 ${G.lives}개 남았어요` : '💔 목숨을 다 썼어요!', 260, 330, '#ff8a8a', 22); }
   G.fb = { ok: false, h: '😢 포탄을 다 썼어요', s: `정답 자리를 초록 원으로 보여 줄게요. ${HINT[G.tg.th]}` };
 }
 function shotLand() {
   const a = G.bul.a; G.bul = null;
   let k = 0; for (let j = 1; j < 8; j++) if (angD(moonAng(j), a) < angD(moonAng(k), a)) k = j;
-  const ph = phaseAt(moonAng(k)), ok = angD(ph, G.tg.th) < SCg().tol;
+  const ph = phaseAt(moonAng(k)), ok = angD(ph, G.tg.th) < TOL[G.tg.kind];
   G.shots++; G.hit = { k, ok, until: (G.clock || 0) + .6 };
+  const [mx, my] = mpt(moonAng(k), MP.R);
   if (ok) {
     G.streak++; G.maxStreak = Math.max(G.maxStreak, G.streak);
-    const pts = [100, 60, 30][G.shots - 1] + Math.min(5, G.streak - 1) * 10, cn = CAN[G.tg.th];
-    G.score += pts; G.hits++; G.total++; G.sH++; G.sN++; BGM.sfx('ok');
-    G.fb = { ok: true, h: `⭕ 명중! +${pts}${G.streak > 1 ? ` 🔥${G.streak}연속` : ''}`, s: `${cn[0]} · ${cn[1]}`, th: G.tg.th };
+    const m = gMul(G.streak), quick = G.shots === 1 && (G.clock || 0) - G.tgAt <= 2, base = [100, 60, 30][G.shots - 1] + (quick ? 50 : 0);
+    const pts = Math.round(base * (SCg().endless ? 1 + Math.floor(G.hits / 5) * .2 : 1) / 10) * 10 * m, cn = CAN[G.tg.th];
+    G.score += pts; G.hits++; G.total++; G.sH++; G.sN++; if (quick) G.quick++; BGM.sfx('ok');
+    gFx(quick ? '⚡ 번개 명중!' : '⭕ 명중!', mx, my - 30, quick ? '#ffe08a' : '#5fe0a0', quick ? 24 : 22); gFx(`+${pts}${m > 1 ? ` ×${m}` : ''}`, mx, my + 34, '#fff', 18);
+    if (G.streak === 3 || G.streak === 6) gFx(`🔥 ${G.streak} 콤보! 점수 ×${m}`, 260, 110, '#ff9f5a', 26);
+    if (SCg().endless && G.hits % 5 === 0) { G.spin += 4; G.amax = Math.min(11, G.amax + 1); gFx('⚡ 달이 더 빨리 돌아요! 소행성도 늘어요!', 260, 400, '#ffcf5a', 20); }
+    G.fb = { ok: true, h: `${quick ? '⚡ 번개 명중!' : '⭕ 명중!'} +${pts}${m > 1 ? ` (🔥${G.streak}연속 ×${m})` : ''}`, s: `${cn[0]} · ${cn[1]}`, th: G.tg.th };
     const hit = G.hit; newTarget(); G.hit = hit; // 맞힌 달은 잠깐 초록으로 빛나요
   } else {
-    G.streak = 0; BGM.sfx('bad');
+    if (G.streak >= 3) gFx('콤보가 끊겼어요', 260, 120, '#ff8a8a', 20); G.streak = 0; BGM.sfx('bad'); gFx('❌', mx, my - 30, '#ff8a8a', 24);
     G.fb = { ok: false, h: `❌ 그 달은 지구에서 ${phName(ph)}(음력 약 ${lunarDay(ph)}일)로 보여요`, th: ph };
     if (G.shots >= MP.shots) fail();
   }
   sideDraw();
 }
-function stageEnd() {
-  gStop(); G.bul = null; G.aiming = false; G.phase = 'sres'; BGM.sfx('ok'); render();
+function gEnd() {
+  gStop(); const g = gData(), C = SC[G.lv];
+  const win = C.endless ? false : C.card ? G.round > 2 || (G.round === 2 && G.cards.every(x => x.ok)) : G.hits >= C.goal;
+  const prev = g.best, prevLv = g.sb[G.lv] || 0;
+  g.plays++; g.last = G.score; g.hits += C.card ? 0 : G.hits; g.sb[G.lv] = Math.max(prevLv, G.score); g.best = g.sb.reduce((a, b) => a + b, 0);
+  if (win && G.lv < 5 && G.lv + 1 > g.clear) g.clear = G.lv + 1;
+  if (!C.card) { G.rate = G.total ? Math.round(G.hits / G.total * 100) : 0; if (G.total >= 5) g.rate = Math.max(g.rate == null ? 0 : g.rate, G.rate); }
+  G.bul = null; G.aiming = false; G.phase = 'over'; G.over = { win, up: g.best > prev, lvUp: G.score > prevLv };
+  BGM.sfx(win || G.over.lvUp ? 'ok' : 'bad');
+  save(); syncGame(); render();
 }
+function hudHTML() {
+  const C = SCg(), m = gMul(G.streak);
+  return `<span class="pill">⭐ 점수 <b>${G.score}</b></span><span class="pill${G.streak >= 3 ? ' hot' : ''}">🔥 콤보 <b>${G.streak}</b>${m > 1 ? ` ×${m}` : ''}</span>`
+    + (C.card ? `<span class="pill">🃏 ${G.round}라운드 · 짝 <b>${G.pairs}</b></span>` : C.endless ? `<span class="pill">❤️ <b>${'❤'.repeat(Math.max(0, G.lives)) || '0'}</b></span><span class="pill">🎯 명중 <b>${G.hits}</b></span>` : `<span class="pill">🎯 명중 <b>${G.hits}/${C.goal}</b></span>`)
+    + `<span class="pill">🏆 내 최고 <b>${gData().best}</b></span>`;
+}
+function hudDraw() { const e = $id('gHud'); if (e) e.innerHTML = hudHTML(); }
 function sideHTML() {
-  const T = G.tg, F = G.fb, left = MP.shots - G.shots;
-  const tgt = SCg().list === 'shape' ? `<div class="tgt"><span class="gmz">${gIcon(T.th, 96)}</span><div><b>지구에서 이렇게 보이는 달</b><p class="muted" style="margin:2px 0 0">을 쏴라!</p></div></div>`
+  const T = G.tg, F = G.fb, left = MP.shots - G.shots, C = SCg();
+  const tgt = T.kind === 'shape' ? `<div class="tgt"><span class="gmz">${gIcon(T.th, 96)}</span><div><b>지구에서 이렇게 보이는 달</b><p class="muted" style="margin:2px 0 0">을 쏴라!</p></div></div>`
     : `<div class="tgt"><span style="font-size:44px">📅</span><div><b>${T.label}의 달</b><p class="muted" style="margin:2px 0 0">을 쏴라!</p></div></div>`;
-  return `<div class="gtime"><span>⏱ <b id="gTimeN">${Math.ceil(G.t)}</b>초</span><span class="gbar"><i id="gTime"></i></span><span>🎯 <b>${G.sH}</b></span></div>${tgt}
+  return `<div class="gtime"><span>${C.endless ? '⏱ 버틴 시간 ' : '⏱ '}<b id="gTimeN">${C.endless ? Math.floor(G.el) : Math.ceil(G.t)}</b>초</span><span class="gbar"><i id="gTime"></i></span></div>${tgt}
 <p class="muted" style="margin:4px 0">포탄 ${'🚀'.repeat(Math.max(0, left))}${'⚪'.repeat(Math.min(MP.shots, G.shots))} · <span class="sunnote${(G.clock || 0) - (G.flipAt == null ? -9 : G.flipAt) < 1.8 ? ' flash' : ''}">${G.sunL ? '☀ 햇빛: <b>← 왼쪽</b>에서' : '☀ 햇빛: <b>오른쪽 →</b>에서'}</span></p>
-${F ? `<div class="gres ${F.ok ? 'ok' : 'bad'} small">${F.th != null ? `<span class="gmz fbic">${gIcon(F.th, 52)}</span>` : ''}<div><b>${F.h}</b>${F.s ? `<span>${F.s}</span>` : ''}</div></div>` : '<p class="note">쏘고 싶은 달 쪽을 누르면 포대가 돌아요. 손을 떼면 발사!</p>'}`;
+${F ? `<div class="gres ${F.ok ? 'ok' : 'bad'} small">${F.th != null ? `<span class="gmz fbic">${gIcon(F.th, 52)}</span>` : ''}<div><b>${F.h}</b>${F.s ? `<span>${F.s}</span>` : ''}</div></div>` : '<p class="note">쏘고 싶은 달 쪽을 누르면 포대가 돌아요. 손을 떼면 발사! 목표가 나오고 2초 안에 첫 발로 맞히면 ⚡ 번개 명중(+50)!</p>'}`;
 }
-function sideDraw() { const e = $id('gSide'); if (e) e.innerHTML = sideHTML(); const s = $id('gScore'); if (s) s.textContent = G.score; boardDraw(); }
+function sideDraw() { const e = $id('gSide'); if (e) e.innerHTML = sideHTML(); hudDraw(); boardDraw(); }
 function gMount() {
-  if (!G) return;
-  if (G.stage === 0) { if (G.phase === 'play') cardDraw(); return; }
-  if (G.phase !== 'play') return;
+  if (!G || G.phase !== 'play') return;
+  if (SC[G.lv].card) { cardDraw(); timeDraw(); G.lastT = 0; cancelAnimationFrame(gRaf); gRaf = requestAnimationFrame(cardTick); return; }
   G.lastT = 0; boardDraw(); cancelAnimationFrame(gRaf); gRaf = requestAnimationFrame(tick);
   const sv = $id('gB'); if (!sv) return;
   const wrap = app.querySelector('.gwrap'); if (wrap && wrap.getBoundingClientRect().top < 0 || (wrap && wrap.getBoundingClientRect().bottom > innerHeight)) wrap.scrollIntoView({ block: 'start' });
@@ -1630,54 +1690,46 @@ function gMount() {
   sv.addEventListener('pointerup', e => { if (!G.aiming) return; G.aiming = false; fire(ang(e)); });
   sv.addEventListener('pointercancel', () => { G.aiming = false; });
 }
-function gNext() {
-  gStop();
-  G.stage++; G.fb = null;
-  if (G.stage >= GST.length) return gEnd();
-  G.phase = 'intro'; render();
-}
-function gEnd() {
-  gStop(); G.stage = GST.length - 1; G.phase = 'win'; G.rate = G.total ? Math.round(G.hits / G.total * 100) : 0;
-  const g = state.game; g.plays++; g.last = G.score; G.newBest = G.score > g.best; g.best = Math.max(g.best, G.score); if (G.total && G.hits === G.total) g.clear++;
-  g.rate = Math.max(g.rate == null ? 0 : g.rate, G.rate);
-  save(); syncGame(); render();
-}
 function viewGame() {
   if (!G) gNew();
-  const hud = `<div class="ghud"><span class="pill">점수 <b id="gScore">${G.score}</b></span>${G.phase !== 'win' ? `<span class="pill">${GST[G.stage].t}</span>` : ''}<span class="pill">🏆 내 최고 <b>${state.game.best}</b></span></div>`;
-  const top = mTop('🎮 마지막 도전 · 달 카드와 지구 포대') + hud;
-  let body;
-  if (G.phase === 'intro') {
-    const s = GST[G.stage];
-    body = `<section class="panel" style="max-width:760px"><p class="kicker">${G.stage + 1} / ${GST.length}단계</p><h2 class="gq">${s.t}</h2><p class="lead">${s.d}</p>
-${G.stage === 1 ? `<ul class="glegend"><li>🚀 지구 위의 <b>포대</b>가 달을 쏴요. (지구에서 달을 바라보는 방향 = 쏘는 방향) 쏘고 싶은 달 쪽을 누르고, 손을 떼면 발사!</li><li>🌗 판의 달은 <b>우주에서 본 모습</b>이라 햇빛 쪽 반이 밝아요. 겉모습이 아니라 <b>자리</b>로 판단해요!</li><li>☀ 이번 단계의 햇빛은 언제나 <b>오른쪽</b>에서 와요. 태양 쪽에 있는 달이 삭이에요.</li><li>🪨 소행성에 막히면 포탄 한 발을 잃어요. 틈을 노려 쏴요! 목표마다 포탄 3발.</li><li>⏱ 맞히면 바로 다음 목표! ${SC[1].T}초 동안 최대한 많이 맞혀요.</li></ul>` : ''}
-${G.stage === 2 ? `<ul class="glegend"><li>☀ 햇빛이 <b>왼쪽</b>에서 와요. 이제는 <b>왼쪽</b>에 있는 달이 삭, 오른쪽 끝의 달이 보름달이에요.</li><li>🌙 공전 방향은 그대로 시계 반대 방향! 삭에서 시계 반대 방향으로 가며 초승달 → 상현달 → 보름달 …</li></ul>` : ''}
-${G.stage === 3 ? `<ul class="glegend"><li>☀ 목표마다 햇빛 방향이 <b>바뀔 수 있어요</b>. 바뀌면 화면에 크게 알려 주고, 잠깐 쏠 수 없어요.</li><li>🪨 소행성이 조금 더 많아요!</li></ul>` : ''}
-${G.stage === 4 ? `<ul class="glegend"><li>🔄 달들이 공전 방향(시계 반대 방향)으로 돌아요. 자리가 바뀌면 지구에서 보이는 모양도 바뀌어요.</li><li>🎯 그 날짜의 자리에 <b>지금</b> 와 있는 달을 쏴요. 햇빛 방향도 확인!</li><li>🪨 소행성이 더 많고 빨라요!</li></ul>` : ''}
-<div class="row" style="margin-top:12px"><button class="btn" data-act="gq">시작 ▶</button></div>${G.stage === 0 ? rankBox() : ''}
-${tester() ? `<div class="row" style="margin-top:14px;padding-top:12px;border-top:1px dashed #8886;align-items:center"><span class="muted">🔧 선생님 확인용 · 바로 가기</span>${GST.map((x, i) => `<button class="btn ghost" data-act="gjump" data-v="${i}"${i === G.stage ? ' disabled' : ''}>${i + 1}단계</button>`).join('')}</div>` : ''}</section>`;
-  } else if (G.phase === 'win') {
-    body = `<section class="panel" style="max-width:720px;text-align:center"><h2 class="gq">🏆 모든 단계를 마쳤어요!</h2><div class="gbig">${G.score}점</div>
-<p class="lead">지구 포대 목표 ${G.total}개 중 <b>${G.hits}개</b> 명중 (성공률 ${G.rate}%) · 최대 ${G.maxStreak}연속 · ${G.newBest ? '🎉 내 최고 기록이에요!' : `내 최고 기록 ${state.game.best}점`}</p>${rankBox()}
-<div class="fb ex" style="text-align:left">💡 달은 언제나 햇빛 쪽 반이 밝지만, 지구에서는 지구를 향한 반만 보여요. 그래서 달이 공전하며 자리가 바뀌면 지구에서 보이는 모양(위상)이 삭 → 초승달 → 상현달 → 보름달(망) → 하현달 → 그믐달로 바뀌어요.</div>
-<div class="row" style="justify-content:center;margin-top:12px"><button class="btn" data-act="gstart">🔁 다시 도전</button><button class="btn ghost" data-act="enter" data-v="map">← 임무 목록</button></div>
-<p class="note">${CONFIG.SUBMIT_URL && state.code ? '최고 점수와 최고 성공률은 선생님 화면의 반별 순위·반 대항 성공률에 올라가요.' : ''}</p></section>`;
-  } else if (G.phase === 'sres') {
-    body = `<section class="panel" style="max-width:720px;text-align:center"><p class="kicker">⏱ 시간 끝!</p><h2 class="gq">${GST[G.stage].t}</h2><div class="gbig">🎯 ${G.sH}개 명중</div>
-<p class="lead">목표 ${G.sN}개 중 ${G.sH}개 · 지금까지 ${G.score}점</p><div class="row" style="justify-content:center;margin-top:12px"><button class="btn" data-act="gnext">${G.stage >= GST.length - 1 ? '최종 결과 보기 →' : `${G.stage + 2}단계로 →`}</button></div></section>`;
-  } else if (G.stage === 0) {
+  const g = gData(), sb = g.sb, top = mTop('🎮 마지막 도전 · 달 카드와 지구 포대');
+  const team = `<p class="gteam">🤝 <b>우리 반 합동 미션</b>: 반 친구들이 지구 포대에서 맞힌 달을 모두 더해 목표에 도전해요. 내가 맞힌 달 <b>${g.hits}개</b></p>`;
+  if (G.phase === 'menu') {
+    const open = tester() ? 5 : Math.min(g.clear, 5), lv = gLevel();
+    return top + `<section class="panel" style="max-width:800px"><ul class="glegend"><li>🚀 지구 위의 <b>포대</b>가 달을 쏴요. (지구에서 달을 바라보는 방향 = 쏘는 방향) 쏘고 싶은 달 쪽을 누르고, 손을 떼면 발사!</li><li>🌗 판의 달은 <b>우주에서 본 모습</b>이라 햇빛 쪽 반이 밝아요. 겉모습이 아니라 <b>자리</b>로 판단해요!</li><li>🪨 소행성에 막히면 포탄 한 발을 잃어요. 목표마다 포탄 3발.</li><li>🔥 연속으로 맞히면 <b>콤보</b>: 3연속 ×2, 6연속 ×3 · ⚡ 목표가 나오고 <b>2초 안에 첫 발</b>로 맞히면 번개 명중 +50!</li></ul>
+<h3 style="margin-top:10px">단계 고르기</h3>
+<div class="lvls">${GST.map((S, i) => `<button class="lvl${i === lv ? ' on' : ''}" data-act="glv" data-v="${i}"${i > open ? ' disabled' : ''}><b>${i > open ? '🔒 ' : i < g.clear ? '✅ ' : ''}${S.t}${sb[i] ? ` · 최고 ${sb[i]}점` : ''}</b><span>${i > open ? (i === 5 ? '5단계를 깨면 열려요.' : '앞 단계를 깨면 열려요.') : S.d}</span></button>`).join('')}</div>
+<div class="row" style="margin-top:8px"><button class="btn" data-act="gstart">🚀 시작</button></div>
+<p class="note">내 최고 점수 <b>${g.best}점</b> (단계마다 가장 잘한 점수를 더해요) · 깬 단계 ${g.clear}/5 · 도전 ${g.plays}번</p>${team}${rankBox()}</section>`;
+  }
+  const C = SC[G.lv], S = GST[G.lv];
+  if (G.phase === 'over') {
+    const O = G.over;
+    const head = C.endless ? '🔥 무한 포대 끝!' : O.win ? `🎉 ${S.t} 성공!` : '😢 아쉬워요!';
+    const msg = C.endless ? (O.lvUp ? '🎉 무한 포대 내 최고 기록이에요!' : `무한 포대 내 최고 기록 ${sb[5]}점`)
+      : O.win ? (G.lv < 4 ? '다음 단계가 열렸어요!' : '🏆 5단계까지 모두 깼어요! 🔥 무한 포대가 열렸어요.')
+      : C.card ? '두 라운드(사진 ↔ 이름, 사진 ↔ 음력 날짜)를 60초 안에 다 맞히면 성공이에요.' : `${G.hits}개 명중. ${C.goal}개 이상 맞히면 성공이에요.`;
+    const stat = C.card ? `🃏 ${G.round}라운드 · 짝 <b>${G.pairs}</b>개 · 🔥 최대 콤보 <b>${G.maxStreak}</b>` : `🎯 명중 <b>${G.hits}</b> / 목표 ${G.total}개 (성공률 ${G.rate}%) · ⚡ 번개 <b>${G.quick}</b> · 🔥 최대 콤보 <b>${G.maxStreak}</b>${C.endless ? ` · ⏱ ${Math.floor(G.el)}초` : ''}`;
+    return top + `<section class="panel" style="max-width:720px;text-align:center"><h2 class="gq">${head}</h2><div class="gbig">${G.score}점</div><p class="lead">${msg}</p><p class="lead">${stat}</p>
+<p class="lead">내 최고 점수(단계별 최고의 합) <b>${g.best}점</b>${O.up ? ' 🎉 기록 갱신!' : ''}</p>${C.card ? '' : `<p class="gteam">🤝 합동 미션에 달 <b>${G.hits}개</b>를 보탰어요! (내가 맞힌 달 모두 ${g.hits}개)</p>`}${rankBox()}
+${C.card ? phaseStrip() : '<div class="fb ex" style="text-align:left">💡 달은 언제나 햇빛 쪽 반이 밝지만, 지구에서는 지구를 향한 반만 보여요. 그래서 달이 공전하며 자리가 바뀌면 지구에서 보이는 모양(위상)이 삭 → 초승달 → 상현달 → 보름달(망) → 하현달 → 그믐달로 바뀌어요.</div>'}
+<div class="row" style="justify-content:center;margin-top:12px">${O.win && G.lv < 5 ? `<button class="btn" data-act="gup">${G.lv < 4 ? '다음 단계 →' : '🔥 무한 포대 →'}</button>` : ''}<button class="btn${O.win ? ' ghost' : ''}" data-act="gagain">🔁 다시 하기</button><button class="btn ghost" data-act="gmenu">단계 고르기</button></div></section>`;
+  }
+  const hud = `<div class="ghud" id="gHud">${hudHTML()}</div>`;
+  if (C.card) {
     const grid = `<div class="cards gmz">${G.cards.map((c, i) => `<button class="card${c.ok ? ' ok' : c.up ? ' up' : ''}" id="cd${i}" data-act="gcard" data-i="${i}" aria-label="카드 ${i + 1}"><span class="in"><span class="f">🌙</span><span class="b">${cardBack(c)}</span></span></button>`).join('')}</div>`;
-    const side = G.phase === 'res' ? `<div class="gres ok"><b>${G.msg.h}</b><span>${G.msg.s}</span></div><div class="row"><button class="btn" data-act="gnext">2단계로 →</button></div>${phaseStrip()}`
-      : `<p class="muted">뒤집은 횟수 <b id="gFlips">${G.flips}</b>번 (짝 6개)</p><div id="gMsg"></div>`;
-    body = `<div class="gwrap"><div>${grid}</div><section class="panel">${side}</section></div>`;
-  } else body = `<div class="gwrap big"><div class="gboard">${boardSVG()}</div><section class="panel" id="gSide">${sideHTML()}</section></div>`;
-  return top + body;
+    return top + hud + `<div class="gwrap"><div>${grid}</div><section class="panel"><p class="kicker">${S.t}</p><div class="gtime"><span>⏱ <b id="gTimeN">${Math.ceil(G.t)}</b>초</span><span class="gbar"><i id="gTime"></i></span></div>
+<h3 style="margin:6px 0">${G.round}라운드 · 달 사진 ↔ ${G.round % 2 === 1 ? '이름' : '음력 날짜'}</h3><div id="gMsg"></div>
+<div class="row" style="margin-top:10px"><button class="btn ghost small" data-act="gagain">🔁 다시 하기</button><button class="btn ghost small" data-act="gmenu">단계 고르기</button></div></section></div>`;
+  }
+  return top + hud + `<div class="gwrap big"><div class="gboard">${boardSVG()}</div><section class="panel"><p class="kicker">${S.t}</p><div id="gSide">${sideHTML()}</div>
+<div class="row" style="margin-top:10px"><button class="btn ghost small" data-act="gagain">🔁 다시 하기</button><button class="btn ghost small" data-act="gmenu">단계 고르기</button></div></section></div>`;
 }
 // 게임 점수 보내기: 임무 성적과 따로 '달의 위상 게임 현황' 탭에 한 줄
 async function syncGame() {
   if (!CONFIG.SUBMIT_URL || !state.code || !state.num) return;
-  const g = state.game;
-  try { if (await hello()) await post({ lesson: CONFIG.LESSON + ' 게임', action: 'save', code: state.code, num: state.num, name: state.name, cols: GCOLS, vals: [g.best, g.plays, g.last, g.clear, g.rate == null ? '' : g.rate] }); } catch (err) {}
+  const g = gData(), sb = g.sb;
+  try { if (await hello()) await post({ lesson: CONFIG.LESSON + ' 게임', action: 'save', code: state.code, num: state.num, name: state.name, cols: GCOLS, vals: [g.best, g.plays, g.last, g.clear, g.rate == null ? '' : g.rate, sb[0], sb[1], sb[2], sb[3], sb[4], sb[5], g.hits] }); } catch (err) {}
   loadRank();
 }
 // 우리 반 게임 순위 (최고 점수 기준): 1~3위와 내 순위. Apps Script가 순위 기능이 있는 버전일 때만 보여요
@@ -1688,8 +1740,8 @@ async function loadRank() {
     const out = await post({ lesson: CONFIG.LESSON + ' 게임', action: 'rank', code: state.code, num: state.num, name: state.name, by: '최고 점수' });
     if (!out || !out.ok) return;
     ui.rank = out;
-    // 게임을 하는 중에는 화면을 다시 그리지 않아요 (시작 화면·결과 화면에서만)
-    if (state.view === 'game' && G && (G.phase === 'intro' || G.phase === 'win')) render();
+    // 게임을 하는 중에는 화면을 다시 그리지 않아요 (단계 고르기·결과 화면에서만)
+    if (state.view === 'game' && G && (G.phase === 'menu' || G.phase === 'over')) render();
   } catch (err) {}
 }
 function rankBox() {
@@ -1699,12 +1751,26 @@ function rankBox() {
   const me = R.rank ? `나는 우리 반 <b>${R.total}명</b> 중 <b class="rk">${R.rank}위</b>${R.rank <= 3 ? ' 🎉' : ''}` : '내 점수를 보내는 중이에요…';
   return `<div class="grank"><h3>🏆 우리 반 순위 <small>(최고 점수 기준)</small></h3><ol>${top}</ol><p>${me}</p></div>`;
 }
+// 교사 화면: 우리 반 합동 미션 (반 학생들이 지구 포대에서 맞힌 달을 모두 더해 목표까지 게이지로)
+function teamBox(T, cls, clsName) {
+  const D = T.game; if (!D || !D.rows.length) return '';
+  const h = D.headers, iN = h.indexOf('학번'), iH = h.indexOf('명중 수'); if (iH < 0) return '';
+  if (!T.goal) { let v = 0; try { v = +localStorage.getItem('mp-goal'); } catch (e) {} T.goal = v >= 10 ? v : 300; }
+  const goal = T.goal, by = {};
+  D.rows.forEach(r => { const c = cls(r, iN); if (!c) return; const b = by[c] = by[c] || { s: 0, n: 0 }; b.s += +r[iH] || 0; b.n++; });
+  const ks = Object.keys(by).sort((a, b) => a.localeCompare(b, 'ko', { numeric: true }));
+  const bar = (c, big) => { const b = by[c], p = Math.min(100, Math.round(b.s / goal * 100)), done = b.s >= goal; return `<div class="trow${big ? ' big' : ''}"><b>${esc(clsName(c))}</b><div class="tg${done ? ' full' : ''}"><i style="width:${p}%"></i></div><span>${b.s} / ${goal}개${done ? ' 🎉 달성!' : ` (${p}%)`}</span><small>${b.n}명 참여</small></div>`; };
+  return `<section class="panel team" style="margin-top:14px"><h3>🤝 우리 반 합동 미션 · 달 ${goal}개 명중!</h3>
+${T.cls && by[T.cls] ? bar(T.cls, true) : ''}${ks.map(c => bar(c)).join('')}
+<div class="row" style="margin-top:10px"><label>목표 <input id="tgoal" type="number" min="10" max="99999" value="${goal}" style="width:110px"> 개</label><button class="btn small ghost" data-act="tgoal">목표 바꾸기</button><button class="btn small${T.auto ? '' : ' ghost'}" data-act="tauto">${T.auto ? '⏱ 자동 새로고침 켜짐 (30초마다)' : '⏱ 30초마다 자동 새로고침'}</button></div>
+<p class="note">학생들이 지구 포대(2~5단계·무한 포대)에서 맞힌 달을 반별로 모두 더해요. TV에 띄워 두고 자동 새로고침을 켜면 수업 중에 게이지가 차오르는 것을 함께 볼 수 있어요.</p></section>`;
+}
 // 교사 화면: 반 대항 성공률 + 반별 게임 최고 점수
 function gameBox(T, cls, clsName) {
   const D = T.game;
   if (!D || !D.rows.length) return '<section class="panel" style="margin-top:14px"><h3>🎮 달 카드와 지구 포대 게임</h3><p class="muted">아직 게임 기록이 없어요. (임무 4를 통과한 학생에게 열려요)</p></section>';
-  const h = D.headers, iN = h.indexOf('학번'), iM = h.indexOf('이름'), iB = h.indexOf('최고 점수'), iP = h.indexOf('도전 횟수'), iC = h.indexOf('모두 성공'), iR = h.indexOf('최고 성공률');
-  const rows = D.rows.map(r => ({ c: cls(r, iN), num: r[iN], name: r[iM], best: +r[iB] || 0, plays: +r[iP] || 0, clear: +r[iC] || 0, rate: iR >= 0 && r[iR] !== '' && r[iR] != null && !isNaN(+r[iR]) ? +r[iR] : null }));
+  const h = D.headers, iN = h.indexOf('학번'), iM = h.indexOf('이름'), iB = h.indexOf('최고 점수'), iP = h.indexOf('도전 횟수'), iC = h.indexOf('깬 단계'), iR = h.indexOf('최고 성공률'), iH = h.indexOf('명중 수');
+  const rows = D.rows.map(r => ({ c: cls(r, iN), num: r[iN], name: r[iM], best: +r[iB] || 0, plays: +r[iP] || 0, clear: iC >= 0 ? +r[iC] || 0 : 0, hits: iH >= 0 ? +r[iH] || 0 : 0, rate: iR >= 0 && r[iR] !== '' && r[iR] != null && !isNaN(+r[iR]) ? +r[iR] : null }));
   const by = {}; rows.forEach(r => { if (r.c) (by[r.c] = by[r.c] || []).push(r); });
   const ks = Object.keys(by).sort((a, b) => a.localeCompare(b, 'ko', { numeric: true }));
   const pc = v => v == null ? '<span class="muted">–</span>' : v + '%';
@@ -1713,8 +1779,8 @@ function gameBox(T, cls, clsName) {
   const medal = i => ['🥇', '🥈', '🥉'][i] || `${i + 1}위`;
   const bars = def.map((d, i) => `<div class="dbar"><span class="dn">${d.v == null ? '' : medal(i)} ${esc(clsName(d.c))}</span><span class="dt"><i style="width:${d.v || 0}%"></i></span><b>${pc(d.v)}</b><small class="muted">${d.n}명</small></div>`).join('');
   const tops = ks.map(c => { const L = by[c].slice().sort((a, b) => b.best - a.best), b = L[0]; return `<tr><td>${esc(clsName(c))}</td><td class="tok">${b.best}점</td><td>${L.filter(r => r.best === b.best).map(r => esc(r.num + ' ' + r.name)).join(', ')}</td><td>${L.length}명</td><td>${Math.round(L.reduce((s, r) => s + r.best, 0) / L.length)}점</td></tr>`; }).join('');
-  const sel = T.cls && by[T.cls] ? `<h3 style="margin-top:14px">${esc(clsName(T.cls))} 순위</h3><table class="ttbl"><thead><tr><th>순위</th><th>학생</th><th>최고 점수</th><th>최고 성공률</th><th>도전</th><th>모두 성공</th></tr></thead><tbody>${by[T.cls].slice().sort((a, b) => b.best - a.best).map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.num + ' ' + r.name)}</td><td>${r.best}점</td><td>${pc(r.rate)}</td><td>${r.plays}번</td><td>${r.clear}번</td></tr>`).join('')}</tbody></table>` : '';
-  return `<section class="panel" style="margin-top:14px"><h3>🚀 반 대항 · 지구 포대 성공률</h3><p class="muted">학생마다 가장 잘한 판의 성공률(지구 포대에서 나온 목표 중 명중한 비율)을 반별로 평균 낸 값이에요.</p><div class="dbars">${bars}</div></section>
+  const sel = T.cls && by[T.cls] ? `<h3 style="margin-top:14px">${esc(clsName(T.cls))} 순위</h3><table class="ttbl"><thead><tr><th>순위</th><th>학생</th><th>최고 점수</th><th>최고 성공률</th><th>깬 단계</th><th>명중</th><th>도전</th></tr></thead><tbody>${by[T.cls].slice().sort((a, b) => b.best - a.best).map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.num + ' ' + r.name)}</td><td>${r.best}점</td><td>${pc(r.rate)}</td><td>${r.clear}/5</td><td>${r.hits}개</td><td>${r.plays}번</td></tr>`).join('')}</tbody></table>` : '';
+  return `${teamBox(T, cls, clsName)}<section class="panel" style="margin-top:14px"><h3>🚀 반 대항 · 지구 포대 성공률</h3><p class="muted">학생마다 가장 잘한 판의 성공률(지구 포대에서 나온 목표 중 명중한 비율, 목표 5개 이상인 판)을 반별로 평균 낸 값이에요.</p><div class="dbars">${bars}</div></section>
 <section class="panel" style="margin-top:14px"><h3>🎮 달 카드와 지구 포대 · 반별 최고 점수</h3><div class="tbl-wrap"><table class="ttbl"><thead><tr><th>반</th><th>최고 점수</th><th>학생</th><th>참여</th><th>반 평균(각자 최고)</th></tr></thead><tbody>${tops}</tbody></table>${sel}</div><p class="note">게임 점수는 임무 성적과 따로 시트의 '달의 위상 게임 현황' 탭에 모여요. 반을 누르면 그 반 순위가 보여요.</p></section>`;
 }
 
@@ -1834,10 +1900,13 @@ app.addEventListener('click', async e => {
   const t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
   const a = t.dataset.act, v = t.dataset.v, S = Stage.S;
   if (a === 'enter') enter(v);
-  else if (a === 'gstart') { gNew(); render(); }
-  else if (a === 'gq') gQ();
-  else if (a === 'gjump' && tester()) { gNew(); G.stage = +v; render(); }
-  else if (a === 'gnext') gNext();
+  else if (a === 'glv') { ui.gLv = +v; render(); }
+  else if (a === 'gstart') gGo(gLevel());
+  else if (a === 'gagain') gGo(G.lv);
+  else if (a === 'gup') { ui.gLv = G.lv + 1; gGo(G.lv + 1); }
+  else if (a === 'gmenu') { gNew(); render(); }
+  else if (a === 'tgoal') { const el = document.getElementById('tgoal'), n = Math.round(+(el && el.value)); if (n >= 10) { ui.teacher.goal = n; try { localStorage.setItem('mp-goal', String(n)); } catch (err) {} } render(); }
+  else if (a === 'tauto') { const T = ui.teacher; T.auto = !T.auto; clearInterval(ui.tTimer); if (T.auto) ui.tTimer = setInterval(() => { const X = ui.teacher; if (state.view === 'teacher' && X && X.auto && X.data) teacherLoad(true); else clearInterval(ui.tTimer); }, 30000); render(); }
   else if (a === 'gcard') flipCard(+t.dataset.i);
   else if (a === 'retry') {
     // 문제 답만 지우고 다시 풀어요 (관찰 체크와 임무 3 예측은 남겨요). 임무 2는 모양 기록도 다시 해요
