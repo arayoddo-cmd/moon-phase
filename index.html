@@ -100,6 +100,24 @@ button.blank:not(.show){color:transparent}
 #app:has(.cl-stage){max-width:1880px}
 .cl-stage .chip{font-size:17px;min-height:46px}
 .cl-stage .group .chip{min-height:42px}
+/* 수업 모드 오른쪽 버튼 칸: 옆 3D 화면 높이에 맞춰 버튼 크기가 저절로 정해져요 (--ck: 버튼이 적으면 크게, 많으면 화면 안에 들어올 만큼). 태블릿으로 눌러도 넉넉하게 */
+@media (min-width:1000px){
+  .cl-stage .cl-side{--ck:1.3}
+  .cl-stage .cl-side .ctrl{gap:calc(6px * var(--ck));margin:0 0 calc(8px * var(--ck))}
+  .cl-stage .cl-side .chip{font-size:calc(15px * var(--ck));min-height:calc(36px * var(--ck));padding:calc(3px * var(--ck)) 10px}
+  .cl-stage .cl-side .group{padding:calc(3px * var(--ck));gap:calc(3px * var(--ck))}
+  .cl-stage .cl-side .group .chip{min-height:calc(34px * var(--ck));padding:2px 8px;flex:1 1 40%}
+  .cl-stage .cl-side .group.months .chip{flex:1 1 14%;min-width:0;padding:2px 4px}
+  .cl-stage .cl-side .group .lbl{font-size:calc(12px * var(--ck));padding:0 6px 1px}
+  /* 첫 줄(재생·+15일·+1달·처음부터)은 두 칸씩 */
+  .cl-stage .cl-side .ctrl:first-child{display:grid;grid-template-columns:1fr 1fr}
+  .cl-stage .cl-side .ctrl:first-child>.group,.cl-stage .cl-side .ctrl:first-child>.chip.big{grid-column:1/-1}
+  .cl-stage .cl-side .note{font-size:calc(13px * var(--ck));margin:2px 0 6px}
+}
+@media (min-width:1000px) and (max-height:820px){
+  .cl-stage .stage{height:max(380px,calc(100vh - 135px))}
+  .cl-stage .cl-side{max-height:calc(100vh - 135px)}
+}
 .concept.big{margin-top:16px}
 .concept.big h3{font-size:clamp(24px,2.6vw,34px)}
 .concept.big li{font-size:clamp(22px,2.4vw,32px);margin:12px 0}
@@ -1851,9 +1869,17 @@ const BGM = (() => {
 /* ───────── 그리기 ───────── */
 const app = document.getElementById('app');
 const VIEWS = { intro: viewIntro, class: viewClass, map: viewMap, m1: viewM1, m2: viewM2, m3: viewM3, m4: viewM4, game: viewGame, cert: viewCert, teacher: viewTeacher };
-function render() {
+// 수업 모드 오른쪽 버튼 칸: 옆 3D 화면 높이 안에 다 들어오는 가장 큰 버튼 크기를 찾아요 (태블릿으로 누르기 어렵지 않게 기본 크기(0.95)보다는 작아지지 않고, 그래도 넘치면 버튼 칸 안에서만 스크롤)
+function fitSide() {
+  const s = document.querySelector('.cl-side'); if (!s) return;
+  if (innerWidth < 1000) { s.style.removeProperty('--ck'); return; }
+  let k = 1.4; s.style.setProperty('--ck', k);
+  while (s.scrollHeight > s.clientHeight + 1 && k > 0.95) { k = +(k - 0.05).toFixed(2); s.style.setProperty('--ck', k); }
+}
+addEventListener('resize', () => { if (state.view === 'class') fitSide(); });function render() {
   app.innerHTML = (VIEWS[state.view] || viewIntro)();
   const slot = app.querySelector('.stage-slot'); if (slot) slot.replaceWith(Stage.el);
+  if (state.view === 'class') fitSide();
   if (state.view === 'game') gMount();
   BGM.mode(state.view === 'game' ? 'game' : null); // 배경음악은 게임 화면에서만
 }
