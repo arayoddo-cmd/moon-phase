@@ -1390,7 +1390,7 @@ ${CONFIG.SUBMIT_URL ? `<p class="muted">진행 상황은 임무를 풀 때마다
 /* ───────── 교사 화면 (교사 코드는 Apps Script에서만 확인) ───────── */
 function viewTeacher() {
   const T = ui.teacher || (ui.teacher = { data: null, code: '', msg: '', cls: '' });
-  const head = `<div class="top"><span class="title" style="font-size:24px">👩‍🏫 교사 화면 · 달의 위상</span><span class="grow"></span>${T.data ? '<button class="btn ghost small" data-act="tload">🔄 새로고침</button>' : ''}<button class="btn ghost small" data-act="enter" data-v="intro">← 처음 화면</button></div>`;
+  const head = `<div class="top"><span class="title" style="font-size:24px">👩‍🏫 교사 화면 · 달의 위상</span><span class="grow"></span>${T.data ? `<button class="btn ghost small" data-act="tload">🔄 새로고침</button><button class="btn small${T.auto ? '' : ' ghost'}" data-act="tauto">${T.auto ? '⏱ 자동 새로고침 켜짐 (30초마다)' : '⏱ 30초마다 자동 새로고침'}</button>` : ''}<button class="btn ghost small" data-act="enter" data-v="intro">← 처음 화면</button></div>`;
   if (!T.data) return head + `<section class="panel" style="max-width:440px"><h3>교사 코드 입력</h3>
 <div class="row"><input id="tcode" type="password" maxlength="30" placeholder="교사 코드" autocomplete="off" style="flex:1;min-width:160px"><button class="btn" data-act="tload">결과 보기</button></div>
 ${T.msg ? `<p class="fb ${T.msg.startsWith('불러') ? '' : 'bad'}">${T.msg}</p>` : ''}</section>`;
